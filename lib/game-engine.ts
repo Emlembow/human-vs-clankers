@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { GameModel, COLORS, type EnemyKind, type GameSnapshot, type Vec } from './game-model';
+import { GameModel, COLORS, type EnemyKind, type GameSnapshot, type Vec, MAX_BULLETS } from './game-model';
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: THREE.Color };
 type TouchStick = { id: number; x: number; y: number; dx: number; dy: number };
@@ -19,6 +19,10 @@ export class GameEngine {
   private sticks: HTMLElement[] = []; private ship = new THREE.Group(); private shield: THREE.LineLoop;
   private grid: THREE.LineSegments; private gridBase: Float32Array; private objects = new Map<number, THREE.Group>();
   private bulletMesh: THREE.InstancedMesh; private dummy = new THREE.Object3D();
+  private bulletColors = new Map<string, THREE.Color>();
+  private orbitals: THREE.LineLoop[] = [];
+  private arcs: { line: THREE.Line; life: number }[] = [];
+  private blasts: { ring: THREE.LineLoop; life: number; radius: number }[] = [];
   private particles: Particle[] = []; private particleMesh: THREE.Points; private particlePositions = new Float32Array(2400 * 3); private particleColors = new Float32Array(2400 * 3);
   private ring: THREE.LineLoop; private ringAge = 5; private ringOrigin: Vec = { x: 0, y: 0 };
   private demo: THREE.Group[] = []; private geometries = new Set<THREE.BufferGeometry>(); private materials = new Set<THREE.Material>();
@@ -48,8 +52,15 @@ export class GameEngine {
     this.ship.add(this.line([[.7, 0], [-.65, .5], [-.4, 0], [-.65, -.5]], '#effff4'));
     this.shield = this.circle(2, '#a4ffcc', .3); this.ship.add(this.shield); this.scene.add(this.ship);
     this.ring = this.circle(1, '#a4ffcc', .8); this.ring.visible = false; this.scene.add(this.ring);
-    const bulletGeometry = this.geometry(new THREE.PlaneGeometry(1.5, .13));
-    this.bulletMesh = new THREE.InstancedMesh(bulletGeometry, this.material(new THREE.MeshBasicMaterial({ color: new THREE.Color('#b1ffde').multiplyScalar(2), blending: THREE.AdditiveBlending, depthWrite: false })), 350);
+    const bulletGeometry = this.geometry(new THREE.PlaneGeometry(1, 1));
+    this.bulletMesh = new THREE.InstancedMesh(bulletGeometry, this.material(new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').multiplyScalar(1.8), blending: THREE.AdditiveBlending, depthWrite: false })), MAX_BULLETS);
+    for (let i = 0; i < 6; i++) { const drone = this.line([[0, .7], [.7, 0], [0, -.7], [-.7, 0]], '#90dfff'); drone.visible = false; this.orbitals.push(drone); this.scene.add(drone); }
+    for (let i = 0; i < 48; i++) {
+      const geo = this.geometry(new THREE.BufferGeometry()); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+      const line = new THREE.Line(geo, this.material(new THREE.LineBasicMaterial({ color: new THREE.Color('#9deaff').multiplyScalar(2), transparent: true, blending: THREE.AdditiveBlending })));
+      line.visible = false; line.frustumCulled = false; this.arcs.push({ line, life: 0 }); this.scene.add(line);
+    }
+    for (let i = 0; i < 24; i++) { const ring = this.circle(1, '#ffd18a', .7); ring.visible = false; this.blasts.push({ ring, life: 0, radius: 1 }); this.scene.add(ring); }
     this.bulletMesh.count = 0; this.bulletMesh.frustumCulled = false; this.scene.add(this.bulletMesh);
     const pg = this.geometry(new THREE.BufferGeometry()); pg.setAttribute('position', new THREE.BufferAttribute(this.particlePositions, 3)); pg.setAttribute('color', new THREE.BufferAttribute(this.particleColors, 3)); pg.setDrawRange(0, 0);
     this.particleMesh = new THREE.Points(pg, this.material(new THREE.PointsMaterial({ size: 2.3 * this.renderer.getPixelRatio(), vertexColors: true, sizeAttenuation: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))); this.particleMesh.frustumCulled = false; this.scene.add(this.particleMesh);
@@ -66,15 +77,17 @@ export class GameEngine {
     return new THREE.LineLoop(geo, this.material(new THREE.LineBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.8), transparent: true, opacity, blending: THREE.AdditiveBlending })));
   }
   private circle(radius: number, color: string, opacity: number) { return this.line(Array.from({ length: 64 }, (_, i) => [Math.cos(i / 64 * Math.PI * 2) * radius, Math.sin(i / 64 * Math.PI * 2) * radius]), color, opacity); }
-  private shapeTemplates = new Map<EnemyKind, THREE.Group>();
-  private enemyShape(kind: EnemyKind) {
-    let template = this.shapeTemplates.get(kind);
+  private shapeTemplates = new Map<string, THREE.Group>();
+  private enemyShape(kind: EnemyKind, elite = false) {
+    const key = kind + (elite ? '-elite' : '');
+    let template = this.shapeTemplates.get(key);
     if (!template) {
       template = new THREE.Group();
       const points = kind === 'drifter' ? [[0, 1.25], [1, 0], [0, -1.25], [-1, 0]] : kind === 'chaser' ? [[-1, -1], [1, -1], [1, 1], [-1, 1]] : [[1.45, 0], [-.8, 1.15], [-.8, -1.15]];
       template.add(this.line(points, COLORS[kind]));
       const inside = this.line(points.map(p => [p[0] * .63, p[1] * .63]), COLORS[kind], .5); inside.rotation.z = kind === 'chaser' ? Math.PI / 4 : 0; template.add(inside);
-      this.shapeTemplates.set(kind, template);
+      if (elite) template.add(this.circle(1.28, '#ffcf72', .7));
+      this.shapeTemplates.set(key, template);
     }
     return template.clone();
   }
@@ -93,6 +106,11 @@ export class GameEngine {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) && this.model.status === 'playing') e.preventDefault();
       this.keys.add(e.code);
       if (e.repeat) return;
+      if (this.model.status === 'reward') {
+        if (['Digit1', 'Digit2', 'Digit3', 'Numpad1', 'Numpad2', 'Numpad3'].includes(e.code)) { e.preventDefault(); const choice = this.model.rewards[Number(e.code.slice(-1)) - 1]; if (choice) this.chooseReward(choice.id); }
+        else if (e.code === 'KeyR') { e.preventDefault(); this.rerollRewards(); }
+        return;
+      }
       if (e.code === 'Enter' && (this.model.status === 'ready' || this.model.status === 'over')) this.start();
       else if (e.code === 'Escape' || e.code === 'KeyP') this.togglePause();
       else if (e.code === 'Space') this.bomb();
@@ -133,6 +151,8 @@ export class GameEngine {
   start() { this.resetInputs(); this.model.start(); this.particles = []; this.unlockAudio(); this.notify(); }
   togglePause() { this.resetInputs(); if (this.model.status === 'playing') this.model.pause(); else if (this.model.status === 'paused') { this.model.resume(); this.unlockAudio(); } this.notify(); }
   bomb() { this.model.bomb(); this.notify(); }
+  chooseReward(id: string) { const chosen = this.model.chooseReward(id); if (chosen) { this.resetInputs(); this.unlockAudio(); this.notify(); } return chosen; }
+  rerollRewards() { const rolled = this.model.rerollRewards(); if (rolled) this.notify(); return rolled; }
   setMuted(value: boolean) { this.muted = value; try { localStorage.setItem('geometry-conflict-muted', String(value)); } catch {} if (!value) this.unlockAudio(); }
   private unlockAudio() {
     try { if (!this.audio) this.audio = new AudioContext(); if (this.audio.state === 'suspended') void this.audio.resume().catch(() => {}); } catch { /* Sound is optional. */ }
@@ -145,7 +165,8 @@ export class GameEngine {
     const osc = this.audio.createOscillator(), gain = this.audio.createGain(); osc.connect(gain); gain.connect(this.audio.destination);
     const shot = type === 'shot', hit = type === 'hit' || type === 'bomb', duration = shot ? .055 : hit ? .5 : .15;
     osc.type = shot ? 'triangle' : hit ? 'sawtooth' : 'sine';
-    osc.frequency.setValueAtTime(shot ? 740 : hit ? 130 : type === 'wave' ? 330 : 420, now);
+    const voice = this.model.weapon.id === 'flame' ? 190 : this.model.weapon.id === 'rail' ? 1200 : this.model.weapon.id === 'mortar' ? 180 : this.model.weapon.id === 'tesla' ? 950 : 740;
+    osc.frequency.setValueAtTime(shot ? voice : hit ? 130 : type === 'wave' ? 330 : 420, now);
     osc.frequency.exponentialRampToValueAtTime(shot ? 300 : hit ? 25 : 850, now + duration);
     gain.gain.setValueAtTime(shot ? .022 : hit ? .06 : .04, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
     osc.start(now); osc.stop(now + duration); osc.onended = () => { gain.disconnect(); osc.disconnect(); };
@@ -166,14 +187,25 @@ export class GameEngine {
     if (this.disposed) return;
     const elapsed = (now - (this.last || now)) / 1000;
     const dt = Math.min(elapsed, .04); this.last = now;
-    const frozen = this.model.status === 'paused'; if (!frozen) this.clock += dt;
+    const frozen = this.model.status === 'paused' || this.model.status === 'reward'; if (!frozen) this.clock += dt;
     const down = (k: string) => this.keys.has(k) ? 1 : 0;
     const mx = down('KeyD') + down('ArrowRight') - down('KeyA') - down('ArrowLeft'), my = down('KeyW') + down('ArrowUp') - down('KeyS') - down('ArrowDown');
     const kx = down('KeyL') - down('KeyJ'), ky = down('KeyI') - down('KeyK');
     const aim = this.rightStick ? { x: this.rightStick.dx, y: this.rightStick.dy } : kx || ky ? { x: kx, y: ky } : this.pointerKnown ? { x: this.pointer.x - this.model.player.x, y: this.pointer.y - this.model.player.y } : { x: 0, y: 1 };
+    const previousStatus = this.model.status;
     this.model.step(dt, { move: this.leftStick ? { x: this.leftStick.dx, y: this.leftStick.dy } : { x: mx, y: my }, aim, shooting: this.mouseDown || !!(kx || ky) || !!(this.rightStick && Math.hypot(this.rightStick.dx, this.rightStick.dy) > .15) });
+    if (previousStatus !== this.model.status) { this.resetInputs(); this.notify(); }
     for (const ev of this.model.events) {
       this.sound(ev.type);
+      if (ev.type === 'impact') this.burst(ev.x, ev.y, ev.color ?? '#a4ffcc', 3, 5);
+      if (ev.type === 'shield') this.burst(ev.x, ev.y, '#77d4ff', 45, 16);
+      if (ev.type === 'upgrade') { this.burst(ev.x, ev.y, ev.color ?? '#a4ffcc', 70, 20); }
+      if (ev.type === 'arc') {
+        const effect = this.arcs.find(a => a.life <= 0) ?? this.arcs[0]; effect.life = .14; effect.line.visible = true;
+        const arr = effect.line.geometry.attributes.position.array as Float32Array, tx = ev.tx ?? ev.x, ty = ev.ty ?? ev.y;
+        arr.set([ev.x, ev.y, 1.1, (ev.x + tx) / 2 + (Math.random() - .5) * 2, (ev.y + ty) / 2 + (Math.random() - .5) * 2, 1.1, tx, ty, 1.1]); effect.line.geometry.attributes.position.needsUpdate = true;
+      }
+      if (ev.type === 'blast') { const effect = this.blasts.find(b => b.life <= 0) ?? this.blasts[0]; effect.life = .28; effect.radius = ev.radius ?? 3; effect.ring.position.set(ev.x, ev.y, 1); effect.ring.visible = true; }
       if (ev.type === 'kill') this.burst(ev.x, ev.y, COLORS[ev.kind!], 30);
       if (ev.type === 'hit') this.burst(ev.x, ev.y, '#ff628f', 110, 28);
       if (ev.type === 'bomb' || ev.type === 'start') { this.ringOrigin = { x: ev.x, y: ev.y }; this.ringAge = 0; this.burst(ev.x, ev.y, COLORS.player, ev.type === 'bomb' ? 160 : 50, 30); }
@@ -182,7 +214,7 @@ export class GameEngine {
     const ready = this.model.status === 'ready'; this.host.classList.toggle('is-playing', this.model.status === 'playing');
     this.ship.visible = !ready && this.model.status !== 'over'; this.ship.position.set(this.model.player.x, this.model.player.y, 1); this.ship.rotation.z = this.model.player.angle;
     this.ship.scale.setScalar(this.model.invulnerable > 0 && Math.sin(this.clock * 30) < 0 ? .85 : 1);
-    this.shield.visible = this.model.invulnerable > 0; this.shield.rotation.z = this.clock;
+    this.shield.visible = this.model.invulnerable > 0 || this.model.shields > 0; this.shield.rotation.z = this.clock; (this.shield.material as THREE.LineBasicMaterial).color.set(this.model.shields > 0 ? '#7bd8ff' : '#a4ffcc').multiplyScalar(1.5);
     if (this.model.status === 'playing' && Math.hypot(this.model.player.vx, this.model.player.vy) > 2) {
       const a = this.model.player.angle; this.burst(this.model.player.x - Math.cos(a), this.model.player.y - Math.sin(a), '#5acbb8', 1, 2);
     }
@@ -193,15 +225,28 @@ export class GameEngine {
     });
     const active = new Set<number>();
     for (const e of this.model.enemies) {
-      active.add(e.id); let o = this.objects.get(e.id); if (!o) { o = this.enemyShape(e.kind); this.objects.set(e.id, o); this.scene.add(o); }
+      active.add(e.id); let o = this.objects.get(e.id); if (!o) { o = this.enemyShape(e.kind, e.elite); this.objects.set(e.id, o); this.scene.add(o); }
       o.position.set(e.x, e.y, .5); o.rotation.z = e.angle;
-      o.scale.setScalar(e.age < .8 ? .3 + e.age / .8 * .7 : 1); o.visible = e.age > .8 || Math.floor(e.age * 15) % 2 === 0;
+      o.scale.setScalar((e.age < .8 ? .3 + e.age / .8 * .7 : 1) * (e.elite ? 1.4 : 1) * (e.flash > 0 ? 1.1 : 1)); o.visible = e.age > .8 || Math.floor(e.age * 15) % 2 === 0;
+      o.children[1]?.scale.setScalar(Math.max(.2, e.hp / e.maxHp));
+      if (!frozen && (e.burnTime > 0 || e.slowTime > 0) && Math.random() < .12) this.burst(e.x, e.y, e.burnTime > 0 ? '#ff9b52' : '#77d4ff', 1, 2);
     }
     for (const [id, o] of this.objects) if (!active.has(id)) { this.scene.remove(o); this.objects.delete(id); }
-    this.bulletMesh.count = Math.min(350, this.model.bullets.length);
-    for (let i = 0; i < this.bulletMesh.count; i++) { const b = this.model.bullets[i]; this.dummy.position.set(b.x, b.y, .8); this.dummy.rotation.z = Math.atan2(b.vy, b.vx); this.dummy.updateMatrix(); this.bulletMesh.setMatrixAt(i, this.dummy.matrix); }
+    this.bulletMesh.count = Math.min(MAX_BULLETS, this.model.bullets.length);
+    for (let i = 0; i < this.bulletMesh.count; i++) {
+      const b = this.model.bullets[i], radius = b.radius ?? .22, color = b.color ?? '#a4ffcc';
+      if (!this.bulletColors.has(color)) this.bulletColors.set(color, new THREE.Color(color));
+      this.dummy.position.set(b.x, b.y, .8); this.dummy.rotation.z = Math.atan2(b.vy, b.vx);
+      this.dummy.scale.set(b.style === 'rail' ? 4 : b.style === 'mortar' ? radius * 2 : b.style === 'flame' ? 1 + b.age * 3 : 1.5, b.style === 'flame' ? radius * 2 : b.style === 'mortar' ? radius * 2 : Math.max(.13, radius), 1);
+      this.dummy.updateMatrix(); this.bulletMesh.setMatrixAt(i, this.dummy.matrix); this.bulletMesh.setColorAt(i, this.bulletColors.get(color)!);
+    }
+    if (this.bulletMesh.instanceColor) this.bulletMesh.instanceColor.needsUpdate = true;
+    const orbitalPositions = this.model.orbitPositions();
+    this.orbitals.forEach((o, i) => { o.visible = i < orbitalPositions.length && !ready && this.model.status !== 'over'; if (o.visible) { o.position.set(orbitalPositions[i].x, orbitalPositions[i].y, 1); o.rotation.z = this.clock * 3; } });
     this.bulletMesh.instanceMatrix.needsUpdate = true;
     const effectDt = frozen ? 0 : dt;
+    for (const effect of this.arcs) { effect.life = Math.max(0, effect.life - effectDt); effect.line.visible = effect.life > 0; (effect.line.material as THREE.LineBasicMaterial).opacity = effect.life / .14; }
+    for (const effect of this.blasts) { effect.life = Math.max(0, effect.life - effectDt); effect.ring.visible = effect.life > 0; effect.ring.scale.setScalar(effect.radius * (1 - effect.life / .4)); (effect.ring.material as THREE.LineBasicMaterial).opacity = effect.life / .28; }
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i]; p.life -= effectDt; if (p.life <= 0) { this.particles.splice(i, 1); continue; }
       p.x += p.vx * effectDt; p.y += p.vy * effectDt; p.vx *= 1 - effectDt * 2; p.vy *= 1 - effectDt * 2;

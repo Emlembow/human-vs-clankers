@@ -1,50 +1,58 @@
 # Geometry Conflict
 
-A Geometry Wars inspired arcade survival game built with Three.js, React, and Vinext. Original neon wireframe visuals, an animated arena grid, bloom, particle explosions, and synthesized sound.
+A Geometry Wars inspired roguelike arena shooter built with Three.js, React, and Vinext. Neon wireframes, an animated grid, bloom, particle effects, and synthesized weapon audio.
 
 ## Play
 
-- **WASD / arrow keys:** move.
-- **Mouse:** aim; hold the primary button to shoot.
-- **IJKL:** aim and shoot using the keyboard.
-- **Space:** use one of three bombs to clear enemies.
-- **P / Escape:** pause or resume.
-- **Enter:** start or replay.
-- **Touch:** drag the left half to move and the right half to aim and shoot. Tap the lightning button for a bomb.
+- **WASD / arrows:** move. **Mouse + hold click:** aim and fire. **IJKL:** keyboard aiming and firing.
+- **Space:** use a bomb. **P / Escape:** pause or resume. **Enter:** start or replay.
+- **After a wave:** click a reward or press **1 / 2 / 3**. Press **R** to reroll all three choices.
+- **Touch:** left thumb moves; right thumb aims and shoots. Tap the lightning button to use a bomb. Reward cards and rerolls work by touch.
 
-Defeat each wave to advance. Five consecutive kills raise your multiplier, up to 8×. At 5× your weapon fires a wider spread. Collisions consume one of three lives, reset the multiplier, and grant temporary protection. The personal best and sound preference are saved only on your device.
+You start with the Needle's single stream, three lives, three bombs, and **two rerolls for the entire run**. Score multipliers never upgrade the weapon.
 
-## Difficulty curve
+Wave one always ends with three different weapon choices from a pool of **ten weapons**. The two initial rerolls expose nine different weapons. Each subsequent wave ends with three choices: weapon upgrades, alternate weapons, or items from a pool of **36 relics**. Extra rerolls are obtainable as selected rewards and carry between waves.
 
-Each wave has a sustained spawn period followed by clearing the remaining enemies. Faster spawn rates do not shorten the wave. Bursts rotate across the arena edges; chasers begin anticipating player movement after wave 4.
+Rewards come in common, uncommon, rare, epic, and legendary qualities. Weapons level up only through chosen upgrades, to level 8. Upgrades can also raise weapon rarity. At maximum level, non-legendary weapons can still receive quality upgrades. Replacement weapons start at the level shown on their card; all collected relics remain active. Every new run resets the build and rerolls. Only personal best and sound preference persist on your device.
 
-| Wave | Enemies | Spawn period | Enemies per burst | Chaser speed |
+## Arsenal and combinations
+
+Pulse Repeater, Trident, Scatter Cannon, Rail Lance, Seeker Array, Prism Driver, Nova Ring, Cinder Jet, Arc Emitter, and Sunburst Mortar have distinct shot patterns and behaviors.
+
+Relics modify damage, fire rate, crits, movement, projectile size and speed, piercing, ricochets, homing, explosions, chains, fire, frost, knockback, shields, lives, bombs, rerolls, luck, orbitals, and conditional bonuses. Examples include a homing shotgun, burning ricochets, or a shield-powered railgun. Five named combinations are displayed when active: Thermal Shock, Thunderstorm, Deadeye, Predator, and Fortress.
+
+The research and specific inspiration from **Hades, Enter the Gungeon, and Ravenswatch** are documented with citations in [docs/roguelike-design.md](docs/roguelike-design.md).
+
+## Faster difficulty curve
+
+| Wave | Enemies | Spawn period | Burst size | Base chaser speed |
 | --- | ---: | ---: | ---: | ---: |
-| 1 | 24 | 22 seconds | 1 | 8.0 |
-| 5 | 68 | 27.6 seconds | 3 | 11.0 |
-| 10 | 179 | 34.6 seconds | 5 | 15.6 |
-| 20 | 589 | 48.6 seconds | 8 | 28.3 |
+| 1 | 36 | 24 seconds | 1 | 9.0 |
+| 2 | 80 | 25.1 seconds | 3 | 11.7 |
+| 3 | 134 | 26.2 seconds | 5 | 14.4 |
+| 5 | 272 | 28.4 seconds | 9 | 20.3 |
+| 10 | 792 | 33.9 seconds | 12 | 36.0 |
 
-Speeds are arena units per second; the player moves at 22. The spawn warning and safe spawn distance remain consistent. At most 160 enemies can be active at once; remaining enemies wait without being discarded. Later waves favor chasers and spinners. Enemy counts, burst sizes, spawn periods, and speed continue scaling beyond wave 20 within bounded limits.
+The unmodified ship moves at 22 units per second. Elites appear from wave 3 with a gold outline, larger size, triple health, and a speed bonus. Enemy health, density, pursuit, and elite frequency rise quickly. A crowded arena pauses the spawn queue instead of dropping enemies. Spawn warning time and safe spawn distance remain consistent.
 
-## Development
+## Development and validation
 
 Requires Node.js 22.13+ and npm.
 
 ```sh
 npm install
 npm run dev
-npm run build
 npm test
 npx tsc --noEmit
+npm run build
 ```
 
-`lib/game-model.ts` is the deterministic, rendering-independent simulation. `lib/game-engine.ts` connects Three.js rendering, input, particles, and audio. `app/page.tsx` contains the game interface. The test suite covers movement, swept collisions, lives, bombs, safe spawning, wave progression, pauses, and run reset. Balance regressions simulate all first 20 waves with immediate kills and verify their increasing duration, enemy counts, multi-edge bursts, and crowd-cap recovery.
+- `lib/roguelike.ts`: weapon definitions, relic catalog, rarity, and derived weapon profiles.
+- `lib/game-model.ts`: deterministic combat, rewards, shared rerolls, effects, and progression.
+- `lib/game-engine.ts`: Three.js rendering, input, transient effects, and audio.
+- `components/reward-screen.tsx`: the three-card selection interface.
+- `tests/`: simulation tests covering the initial draft, rerolls, selection validation, upgrades, every weapon, relic effects, combat combinations, crowd caps, and 20-wave progression.
 
-The UI handles graphics failures with a reload action. Audio starts after a user gesture. Browser focus loss pauses gameplay. Touch controls and reduced-motion preferences are supported. Three.js loads separately from the initial interface.
+Browser focus loss pauses combat. Reward selection freezes gameplay and survival time. The interface supports keyboard, touch, fullscreen, graphics-error recovery, and reduced-motion preferences. No browser interaction testing was requested; simulation tests and compilation do not establish subjective gameplay balance or visual QA.
 
-## Validation
-
-The production build, TypeScript check, and 15 simulation tests pass. Browser interaction testing was not requested and has not been performed.
-
-The optional WebMCP interface feature-detects `document.modelContext`, exposing `get_game_status` and `control_game`. No supported live WebMCP validation context was available; that optional integration has not been verified in a browser.
+Optional WebMCP tools expose `get_game_status`, `control_game`, `choose_wave_reward`, and `reroll_wave_rewards` when `document.modelContext` is supported. No live WebMCP validation context was available, so that optional integration has not been verified in a browser.

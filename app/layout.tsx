@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Geometry Conflict — Enter the grid',
   icons: { icon: '/favicon.svg' },
-  description: 'A neon arcade survival shooter. Move, aim, and outlast an endless swarm of geometric enemies.',
+  description: 'A neon roguelike arena shooter. Choose from ten weapons and 36 relics, build powerful combinations, and survive escalating waves.',
 };
 
 export default function RootLayout({

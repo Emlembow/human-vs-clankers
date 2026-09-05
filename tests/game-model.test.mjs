@@ -6,7 +6,7 @@ const newGame = () => { const g = new GameModel(() => .5); g.start(); return g; 
 const enemyAt = (g, x, y, kind = 'drifter') => { const e = g.spawnEnemy(kind); e.x = x; e.y = y; e.age = 2; e.vx = 0; e.vy = 0; return e; };
 test('new runs reset gameplay while retaining the personal best', () => {
   const g = newGame(); g.score = 5000; g.best = 5000; g.lives = 1; g.bombs = 0; g.wave = 8; g.start();
-  assert.deepEqual(g.snapshot(), { status: 'playing', score: 0, best: 5000, lives: 3, bombs: 3, wave: 1, multiplier: 1, kills: 0, time: 0, waveBanner: true });
+  const expected = newGame().snapshot(); expected.best = 5000; assert.deepEqual(g.snapshot(), expected);
 });
 test('paused and finished runs do not advance or consume bombs', () => {
   const g = newGame(); g.pause(); const before = g.snapshot(); g.step(1, idle); assert.equal(g.bomb(), false); assert.deepEqual(g.snapshot(), before);
@@ -47,10 +47,10 @@ test('spawning enemies cannot damage the player during their warning animation',
 test('enemy spawns keep a safe distance from the player', () => {
   for (let i = 0; i < 100; i++) { const g = new GameModel(); g.setBounds(36, 60); g.start(); g.player.x = 15; g.player.y = 24; const e = g.spawnEnemy(); assert.ok(Math.hypot(e.x - 15, e.y - 24) >= 18); }
 });
-test('clearing the finite first wave advances to wave two', () => {
+test('clearing the first wave waits for a weapon choice before wave two', () => {
   const g = newGame(); g.invulnerable = 100;
-  for (let i = 0; i < 2000 && g.wave === 1; i++) { g.step(.02, idle); for (const e of g.enemies) { g.bullets.push({ id: 10000 + i, x: e.x - 1, y: e.y, vx: 100, vy: 0, age: 0 }); } }
-  assert.equal(g.wave, 2); assert.equal(g.kills, 24); assert.ok(g.waveBanner > 0);
+  for (let i = 0; i < 2000 && g.status === 'playing'; i++) { g.step(.02, idle); for (const e of g.enemies) { g.bullets.push({ id: 10000 + i, x: e.x - 1, y: e.y, vx: 100, vy: 0, age: 0 }); } }
+  assert.equal(g.wave, 1); assert.equal(g.status, 'reward'); assert.equal(g.kills, 36); assert.equal(g.rewards.length, 3); assert.ok(g.rewards.every(r => r.type === 'weapon')); g.chooseReward(g.rewards[0].id); assert.equal(g.wave, 2); assert.equal(g.status, 'playing');
 });
 test('invalid time steps cannot corrupt game state and long frames are bounded', () => {
   const g = newGame(); g.step(NaN, idle); g.step(Infinity, idle); g.step(-1, idle); assert.equal(g.time, 0); g.step(10, idle); assert.equal(g.time, .05);

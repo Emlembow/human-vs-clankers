@@ -8,6 +8,27 @@ export type GameSnapshot = { status: Status; score: number; best: number; lives:
 export type Input = { move: Vec; aim: Vec; shooting: boolean };
 export const COLORS = { drifter: '#30d9ff', chaser: '#ff4f96', spinner: '#ffb456', player: '#a4ffcc' };
 export const POINTS = { drifter: 100, chaser: 200, spinner: 300 };
+export const MAX_ACTIVE_ENEMIES = 160;
+
+// Duration and population grow independently: a faster spawn rate must not
+// make a later wave shorter. Bursts grow as the arena fills with faster hunters.
+export function getWaveTuning(wave: number) {
+  const level = Math.max(0, wave - 1);
+  const enemyCount = Math.min(1200, Math.round(24 + 6 * level + 1.25 * level * level));
+  const burstSize = Math.min(8, 1 + Math.floor(level / 2));
+  const spawnDuration = Math.min(65, 22 + 1.4 * level);
+  return {
+    enemyCount,
+    burstSize,
+    spawnDuration,
+    spawnInterval: spawnDuration / (Math.ceil(enemyCount / burstSize) - 1),
+    drifterChance: Math.max(.08, .5 - .045 * level),
+    spinnerChance: wave === 1 ? 0 : Math.min(.45, .12 + .03 * (wave - 2)),
+    speedBonus: Math.min(24, .65 * level + .022 * level * level),
+    pursuitResponse: Math.min(8, 3 + .24 * level),
+    interceptTime: Math.min(.45, Math.max(0, wave - 4) * .035),
+  };
+}
 const clamp = (x: number, low: number, high: number) => Math.max(low, Math.min(high, x));
 const normal = (x: number, y: number) => { const n = Math.hypot(x, y); return n > .0001 ? { x: x / n, y: y / n } : { x: 0, y: 0 }; };
 
@@ -17,7 +38,7 @@ export class GameModel {
   width = 110; height = 60; invulnerable = 0; waveBanner = 0; shake = 0;
   player = { x: 0, y: 0, angle: Math.PI / 2, vx: 0, vy: 0 };
   enemies: Enemy[] = []; bullets: Bullet[] = []; events: GameEvent[] = [];
-  private id = 0; private shotClock = 0; private spawnClock = 0; private remaining = 0; private nextWave = 0; private streak = 0;
+  private id = 0; private shotClock = 0; private spawnClock = 0; private remaining = 0; private nextWave = 0; private streak = 0; private spawnSide = 0;
   random: () => number;
   constructor(random = Math.random) { this.random = random; }
   setBounds(width: number, height: number) {
@@ -36,18 +57,20 @@ export class GameModel {
   pause() { if (this.status === 'playing') this.status = 'paused'; }
   resume() { if (this.status === 'paused') this.status = 'playing'; }
   private beginWave() {
-    this.remaining = 6 + this.wave * 3; this.spawnClock = 1.8; this.nextWave = 2;
+    this.remaining = getWaveTuning(this.wave).enemyCount; this.spawnClock = 1.8; this.nextWave = 2;
+    this.spawnSide = Math.floor(this.random() * 4);
     this.waveBanner = 2; this.events.push({ type: 'wave', x: 0, y: 0 });
   }
-  spawnEnemy(kind?: EnemyKind) {
-    const side = Math.floor(this.random() * 4);
+  spawnEnemy(kind?: EnemyKind, entrySide?: number) {
+    const side = entrySide ?? Math.floor(this.random() * 4);
     const w = this.width / 2 - 2, h = this.height / 2 - 2;
     let x = side < 2 ? (side === 0 ? -w : w) : (this.random() * 2 - 1) * w;
     let y = side >= 2 ? (side === 2 ? -h : h) : (this.random() * 2 - 1) * h;
     if (Math.hypot(x - this.player.x, y - this.player.y) < 18) { x = -x; y = -y; }
     const direction = normal(this.player.x - x, this.player.y - y);
     const roll = this.random();
-    const selected = kind ?? (roll < .4 ? 'drifter' : roll < (this.wave > 1 ? .8 : 1) ? 'chaser' : 'spinner');
+    const tuning = getWaveTuning(this.wave);
+    const selected = kind ?? (roll < tuning.drifterChance ? 'drifter' : roll < 1 - tuning.spinnerChance ? 'chaser' : 'spinner');
     const e: Enemy = { id: ++this.id, kind: selected, x, y, vx: direction.x, vy: direction.y, angle: this.random() * Math.PI * 2, age: 0, radius: selected === 'spinner' ? 1.35 : 1.05 };
     this.enemies.push(e); return e;
   }
@@ -69,6 +92,7 @@ export class GameModel {
   }
   step(dt: number, input: Input) {
     if (this.status !== 'playing' || !Number.isFinite(dt) || dt <= 0) return;
+    const tuning = getWaveTuning(this.wave);
     dt = Math.min(dt, .05); this.time += dt; this.invulnerable = Math.max(0, this.invulnerable - dt); this.waveBanner = Math.max(0, this.waveBanner - dt); this.shake = Math.max(0, this.shake - dt * 2);
     const movement = normal(input.move.x, input.move.y), easing = 1 - Math.exp(-14 * dt);
     this.player.vx += (movement.x * 22 - this.player.vx) * easing; this.player.vy += (movement.y * 22 - this.player.vy) * easing;
@@ -83,8 +107,16 @@ export class GameModel {
       for (const offset of spread) { const a = this.player.angle + offset; this.bullets.push({ id: ++this.id, x: this.player.x + Math.cos(a) * 1.5, y: this.player.y + Math.sin(a) * 1.5, vx: Math.cos(a) * 82, vy: Math.sin(a) * 82, age: 0 }); }
       this.events.push({ type: 'shot', x: this.player.x, y: this.player.y });
     }
-    this.spawnClock -= dt;
-    if (this.remaining > 0 && this.spawnClock <= 0) { this.spawnEnemy(); this.remaining--; this.spawnClock = Math.max(.16, .75 - this.wave * .045); }
+    // Hold a crowded arena at the cap without spending its remaining enemies
+    // or accumulating a catch-up burst. Clearing space lets the assault resume.
+    if (this.enemies.length < MAX_ACTIVE_ENEMIES) this.spawnClock -= dt;
+    if (this.remaining > 0 && this.spawnClock <= 0 && this.enemies.length < MAX_ACTIVE_ENEMIES) {
+      const count = Math.min(tuning.burstSize, this.remaining, MAX_ACTIVE_ENEMIES - this.enemies.length);
+      for (let i = 0; i < count; i++) this.spawnEnemy(undefined, (this.spawnSide + i) % 4);
+      this.spawnSide = (this.spawnSide + 1) % 4;
+      this.remaining -= count;
+      this.spawnClock += tuning.spawnInterval;
+    }
     if (this.remaining === 0 && this.enemies.length === 0) {
       this.nextWave -= dt;
       if (this.nextWave <= 0) { this.wave++; this.beginWave(); }
@@ -93,8 +125,12 @@ export class GameModel {
       e.age += dt; e.angle += dt * (e.kind === 'spinner' ? 3.8 : .7);
       if (e.age < .8) continue;
       const toward = normal(this.player.x - e.x, this.player.y - e.y);
-      const speed = (e.kind === 'drifter' ? 4.6 : e.kind === 'chaser' ? 7.2 : 6) + Math.min(7, this.wave * .36);
-      if (e.kind === 'chaser') { e.vx += (toward.x - e.vx) * dt * 2.8; e.vy += (toward.y - e.vy) * dt * 2.8; }
+      const speed = (e.kind === 'drifter' ? 5.4 : e.kind === 'chaser' ? 8 : 7.2) + tuning.speedBonus;
+      if (e.kind === 'chaser') {
+        const intercept = normal(this.player.x + this.player.vx * tuning.interceptTime - e.x, this.player.y + this.player.vy * tuning.interceptTime - e.y);
+        const response = 1 - Math.exp(-tuning.pursuitResponse * dt);
+        e.vx += (intercept.x - e.vx) * response; e.vy += (intercept.y - e.vy) * response;
+      }
       if (e.kind === 'spinner') { const a = Math.atan2(toward.y, toward.x) + Math.sin(e.age * 2) * .9; e.vx = Math.cos(a); e.vy = Math.sin(a); }
       e.x += e.vx * speed * dt; e.y += e.vy * speed * dt;
       if (Math.abs(e.x) > this.width / 2 - 1.6) { e.x = Math.sign(e.x) * (this.width / 2 - 1.6); e.vx *= -1; }

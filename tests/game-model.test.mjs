@@ -49,8 +49,8 @@ test('enemy spawns keep a safe distance from the player', () => {
 });
 test('clearing the finite first wave advances to wave two', () => {
   const g = newGame(); g.invulnerable = 100;
-  for (let i = 0; i < 1300 && g.wave === 1; i++) { g.step(.02, idle); for (const e of g.enemies) { g.bullets.push({ id: 10000 + i, x: e.x - 1, y: e.y, vx: 100, vy: 0, age: 0 }); } }
-  assert.equal(g.wave, 2); assert.equal(g.kills, 9); assert.ok(g.waveBanner > 0);
+  for (let i = 0; i < 2000 && g.wave === 1; i++) { g.step(.02, idle); for (const e of g.enemies) { g.bullets.push({ id: 10000 + i, x: e.x - 1, y: e.y, vx: 100, vy: 0, age: 0 }); } }
+  assert.equal(g.wave, 2); assert.equal(g.kills, 24); assert.ok(g.waveBanner > 0);
 });
 test('invalid time steps cannot corrupt game state and long frames are bounded', () => {
   const g = newGame(); g.step(NaN, idle); g.step(Infinity, idle); g.step(-1, idle); assert.equal(g.time, 0); g.step(10, idle); assert.equal(g.time, .05);

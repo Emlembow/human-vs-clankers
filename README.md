@@ -59,3 +59,9 @@ npm run build
 Browser focus loss pauses combat. Reward selection freezes gameplay and survival time. The interface supports keyboard, touch, fullscreen, graphics-error recovery, and reduced-motion preferences. No browser interaction testing was requested; simulation tests and compilation do not establish subjective gameplay balance or visual QA.
 
 Optional WebMCP tools expose `get_game_status`, `control_game`, `choose_wave_reward`, and `reroll_wave_rewards` when `document.modelContext` is supported. No live WebMCP validation context was available, so that optional integration has not been verified in a browser.
+
+## Arena materials and effects
+
+The Poly asset guide informed a dim Poly Haven metal-plate floor with diffuse, normal, and packed material maps. Kenney particle textures add soft sparks, impact flares, ship glow, and restrained haze. Lit perimeter posts frame the arena. The neon grid, enemy silhouettes, collision rules, and difficulty remain intact.
+
+Six locally hosted images total about 2.7 MB; materials load asynchronously with an untextured fallback. Effects reuse fixed pools, freeze with the game, honor reduced motion, and release GPU resources on teardown. Source URLs and licenses are recorded in `public/assets/licenses/SOURCES.md`.

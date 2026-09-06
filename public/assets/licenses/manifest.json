@@ -1,0 +1,45 @@
+{
+  "downloaded": "2026-09-06",
+  "license": "CC0-1.0",
+  "assets": [
+    {
+      "file": "assets/polyhaven/metal_plate_diff_1k.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_diff_1k.jpg",
+      "sha256": "c6b6739eac2c75ccc898e753d7833df24eafbdb9aa92fb6eabfb92abd1a680a5",
+      "bytes": 692234
+    },
+    {
+      "file": "assets/polyhaven/metal_plate_nor_gl_1k.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_nor_gl_1k.jpg",
+      "sha256": "994f851a84d52b51e97906021a1b7070ee6eac9a789fef041132268de47d8e6b",
+      "bytes": 770307
+    },
+    {
+      "file": "assets/polyhaven/metal_plate_arm_1k.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_arm_1k.jpg",
+      "sha256": "fc4708b6700a2cc387654b693091dd0ac0cd1797ae803d75c894e62554fbef07",
+      "bytes": 1004043
+    },
+    {
+      "file": "assets/kenney/circle_05.png",
+      "source": "https://kenney.nl/media/pages/assets/particle-pack/f8fe0f8cb8-1677578741/kenney_particle-pack.zip",
+      "archive_entry": "PNG (Transparent)/circle_05.png",
+      "sha256": "925b8ac284436f74f9cadf0ecd058da1c08fba65c098e4e34fd220603022f02e",
+      "bytes": 65336
+    },
+    {
+      "file": "assets/kenney/flare_01.png",
+      "source": "https://kenney.nl/media/pages/assets/particle-pack/f8fe0f8cb8-1677578741/kenney_particle-pack.zip",
+      "archive_entry": "PNG (Transparent)/flare_01.png",
+      "sha256": "254f5bd4f0548612bf29305d27899efdee8cb8d8306292761ebbddebd3e57935",
+      "bytes": 42886
+    },
+    {
+      "file": "assets/kenney/smoke_01.png",
+      "source": "https://kenney.nl/media/pages/assets/particle-pack/f8fe0f8cb8-1677578741/kenney_particle-pack.zip",
+      "archive_entry": "PNG (Transparent)/smoke_01.png",
+      "sha256": "e8724c219e8d35859167fc0a7e207e13c72ccf0c29704909b9bb3d3dc71c6cf7",
+      "bytes": 97452
+    }
+  ]
+}

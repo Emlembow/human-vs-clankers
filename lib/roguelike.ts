@@ -95,7 +95,8 @@ export function weaponUpgradePreview(weapon: WeaponState, stats: RunStats, amoun
   const before = weaponProfile(weapon, comparisonStats), after = weaponProfile(next, comparisonStats);
   const changes: RewardChange[] = [];
   const add = (label: string, previous: number, value: number) => {
-    if (Math.abs(value - previous) > 1e-9) changes.push({ label, before: String(num(previous)), after: String(num(value)) });
+    const before = String(num(previous)), after = String(num(value));
+    if (Math.abs(value - previous) > 1e-9 && before !== after) changes.push({ label, before, after });
   };
   add('Damage / hit', before.damage, after.damage);
   add(before.pellets > 1 ? 'Volleys / sec' : 'Shots / sec', 1 / before.interval, 1 / after.interval);

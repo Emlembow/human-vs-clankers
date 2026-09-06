@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GameModel } from '../lib/game-model.ts';
-import { STARTER, WEAPONS, RELICS, RARITIES, MAX_WEAPON_LEVEL, emptyStats, weaponProfile, weaponUpgradePreview } from '../lib/roguelike.ts';
+import { STARTER, WEAPONS, RELICS, RARITIES, MAX_WEAPON_LEVEL, emptyStats, weaponProfile, weaponUpgradePreview, relicValue } from '../lib/roguelike.ts';
 
 const weapons = [STARTER, ...WEAPONS];
 const referenceStats = stats => ({ ...stats, movingDamage: 0, shieldDamage: 0, berserk: 0, stationaryRate: 0 });
@@ -15,7 +15,7 @@ const columns = profile => ({
 
 function checkDisplayedChanges(reward, before, after) {
   const previous = columns(before), next = columns(after);
-  const expectedLabels = Object.keys(previous).filter(key => Math.abs(next[key] - previous[key]) > 1e-9);
+  const expectedLabels = Object.keys(previous).filter(key => Math.abs(next[key] - previous[key]) > 1e-9 && readable(previous[key]) !== readable(next[key]));
   assert.deepEqual(reward.changes.map(change => change.label), expectedLabels);
   for (const change of reward.changes) {
     assert.equal(change.before, readable(previous[change.label]), `${before.id} ${change.label}: before`);
@@ -138,4 +138,40 @@ test('supply and Combat Package descriptions report the amount actually received
     if (increase > 0) assert.ok(reward.description.includes(`+${readable(increase * 100)}% fire-rate`));
   }
   assert.equal(RELICS.find(relic => relic.id === 'capacitor').describe(.352), 'All weapons: +35.2% damage bonus.');
+});
+
+test('reachable bonuses near the fire-rate cap do not show identical before and after values', () => {
+  const game = new GameModel(() => 0); game.start();
+  function choose(reward) {
+    game.status = 'reward'; game.rewards = [reward];
+    assert.equal(game.chooseReward(reward.id), true);
+  }
+  function draft(weaponId, level) {
+    const def = WEAPONS.find(weapon => weapon.id === weaponId);
+    choose({ id: `weapon:${weaponId}`, key: `weapon:${weaponId}`, type: 'weapon', name: def.name, rarity: 'common', category: def.tagline, description: def.description, weaponId, amount: level });
+  }
+  function grant(relicId, rarity) {
+    const def = RELICS.find(relic => relic.id === relicId), amount = relicValue(def, rarity);
+    choose({ id: `relic:${relicId}`, key: `relic:${relicId}`, type: 'relic', name: def.name, rarity, category: def.category, description: def.describe(amount), relicId, amount });
+  }
+  draft('repeater', 1);
+  assert.equal(game.wave, 2); grant('accelerator', 'uncommon');
+  assert.equal(game.wave, 3); grant('fusillade', 'legendary');
+  assert.equal(game.wave, 4); grant('fusillade', 'rare');
+  assert.equal(game.wave, 5); draft('rail', 2);
+  assert.equal(game.wave, 6); grant('fusillade', 'common');
+  assert.equal(game.wave, 7);
+  assert.ok(Math.abs(game.stats.fireRate - .657) < 1e-12);
+  assert.equal(game.owned.accelerator, 1); assert.equal(game.owned.fusillade, 3);
+  const before = game.profiles[0];
+  game.status = 'reward'; game.generateRewards();
+  const reward = game.rewards.find(value => value.type === 'upgrade' && value.weaponId === 'repeater');
+  assert.ok(reward); assert.equal(reward.amount, 1); assert.equal(reward.rarity, 'common');
+  assert.equal(game.chooseReward(reward.id), true);
+  const after = game.profiles[0];
+  assert.ok(1 / after.interval > 1 / before.interval, 'the real small cadence gain is preserved');
+  assert.equal(readable(1 / before.interval), '28.57');
+  assert.equal(readable(1 / after.interval), '28.57');
+  assert.ok(reward.changes.every(change => change.before !== change.after));
+  assert.deepEqual(reward.changes.map(change => change.label), ['Damage / hit']);
 });

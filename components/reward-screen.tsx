@@ -17,19 +17,20 @@ function RewardIcon({ reward }: { reward: Reward }) {
   return <Icon size={36} strokeWidth={1.3}/>;
 }
 export function RewardScreen({ game, onChoose, onReroll }: { game: GameSnapshot; onChoose: (id: string) => void; onReroll: () => void }) {
+  const synergies = [...new Set(game.weapons.flatMap(w => w.synergies))];
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [game.wave]);
   return <section className="reward-screen" aria-label="Choose your wave reward">
-    <div className="reward-heading"><div><div className="eyebrow mint">WAVE {String(game.wave).padStart(2, '0')} CLEARED</div><h2 ref={heading} tabIndex={-1}>{game.wave === 1 ? 'Choose your weapon.' : 'Choose your next edge.'}</h2><p>{game.wave === 1 ? 'Three weapons. Ten possibilities. This is where your build begins.' : 'Take one reward. Everything you collect lasts for this run.'}</p></div><div className="draft-badge"><Sparkles size={16}/><span>CHOOSE<br/><b>1 OF 3</b></span></div></div>
+    <div className="reward-heading"><div><div className="eyebrow mint">WAVE {String(game.wave).padStart(2, '0')} CLEARED</div><h2 ref={heading} tabIndex={-1}>{game.wave === 1 ? 'Choose your weapon.' : game.wave === 5 ? 'Add your second weapon.' : 'Power up your build.'}</h2><p>{game.wave === 1 ? 'Choose one of ten weapons. Add a second after wave 5.' : game.wave === 5 ? 'Both weapons fire together. This is your final weapon selection.' : 'Upgrade an equipped weapon or take a power-up for your build.'}</p></div><div className="draft-badge"><Sparkles size={16}/><span>CHOOSE<br/><b>1 OF 3</b></span></div></div>
     <div className="reward-cards" aria-label="Three reward choices">
       {game.rewards.map((reward, i) => <button key={reward.id} className={`reward-card ${reward.type}`} style={{ '--rarity': RARITY_COLOR[reward.rarity] } as CSSProperties} onClick={() => onChoose(reward.id)} aria-label={`Choose ${reward.rarity} ${reward.name}. ${reward.description}`}>
         <div className="card-topline"><span className="rarity"><i/>{reward.rarity}</span><kbd>{i + 1}</kbd></div>
         <div className="reward-visual">{reward.type === 'weapon' ? <WeaponDiagram id={reward.weaponId!} color={RARITY_COLOR[reward.rarity]}/> : <RewardIcon reward={reward}/>}</div>
         <span className="reward-category">{reward.category}</span><h3>{reward.name}</h3><p>{reward.description}</p>
-        <div className="card-choose">{reward.type === 'weapon' ? `EQUIP · LEVEL ${reward.amount}` : reward.type === 'upgrade' ? 'UPGRADE & CONTINUE' : 'TAKE & CONTINUE'}<ArrowUpRight size={18}/></div>
+        <div className="card-choose">{reward.type === 'weapon' ? `${game.wave === 5 ? 'ADD WEAPON' : 'EQUIP'} · LEVEL ${reward.amount}` : reward.type === 'upgrade' ? 'UPGRADE & CONTINUE' : 'TAKE & CONTINUE'}<ArrowUpRight size={18}/></div>
       </button>)}
     </div>
-    <div className="reward-bottom"><div><button className="reroll-button" onClick={onReroll} disabled={game.rerolls === 0}><RotateCcw size={16}/>REROLL CHOICES<span>{game.rerolls} LEFT</span><kbd>R</kbd></button><p>{game.rerolls === 0 ? 'No rerolls left. Second Opinion rewards can grant more.' : 'Shared across the entire run. Spend wisely.'}</p></div><div className="current-weapon"><span>YOUR WEAPON</span><b style={{ color: game.weapon.color }}>{game.weapon.name} <small>LV. {game.weapon.level}</small></b><span className="current-quality">{game.weapon.rarity} · {game.relics.length} relics</span></div></div>
-    {game.weapon.synergies.length > 0 && <div className="synergy-strip"><Sparkles size={13}/>{game.weapon.synergies.join('  /  ')}</div>}
+    <div className="reward-bottom"><div><button className="reroll-button" onClick={onReroll} disabled={game.rerolls === 0}><RotateCcw size={16}/>REROLL CHOICES<span>{game.rerolls} LEFT</span><kbd>R</kbd></button><p>{game.rerolls === 0 ? 'No rerolls left. Second Opinion rewards can grant more.' : 'Shared across the entire run. Spend wisely.'}</p></div><div className="current-weapon"><span>YOUR LOADOUT{game.weapons.length === 2 ? " · BOTH ACTIVE" : ""}</span>{game.weapons.map(weapon => <b key={weapon.id} style={{ color: weapon.color }}>{weapon.name} <small>LV. {weapon.level} · {weapon.rarity}</small></b>)}<span className="current-quality">{game.relics.length} relics</span></div></div>
+    {synergies.length > 0 && <div className="synergy-strip"><Sparkles size={13}/>{synergies.join('  /  ')}</div>}
   </section>;
 }

@@ -157,7 +157,7 @@ export class GameEngine {
   private unlockAudio() {
     try { if (!this.audio) this.audio = new AudioContext(); if (this.audio.state === 'suspended') void this.audio.resume().catch(() => {}); } catch { /* Sound is optional. */ }
   }
-  private sound(type: string) {
+  private sound(type: string, weaponId?: string) {
     if (!this.audio || this.muted || this.audio.state !== 'running') return;
     const now = this.audio.currentTime;
     if (type === 'kill' && now - this.lastSound < .035) return;
@@ -165,7 +165,7 @@ export class GameEngine {
     const osc = this.audio.createOscillator(), gain = this.audio.createGain(); osc.connect(gain); gain.connect(this.audio.destination);
     const shot = type === 'shot', hit = type === 'hit' || type === 'bomb', duration = shot ? .055 : hit ? .5 : .15;
     osc.type = shot ? 'triangle' : hit ? 'sawtooth' : 'sine';
-    const voice = this.model.weapon.id === 'flame' ? 190 : this.model.weapon.id === 'rail' ? 1200 : this.model.weapon.id === 'mortar' ? 180 : this.model.weapon.id === 'tesla' ? 950 : 740;
+    const voice = weaponId === 'flame' ? 190 : weaponId === 'rail' ? 1200 : weaponId === 'mortar' ? 180 : weaponId === 'tesla' ? 950 : 740;
     osc.frequency.setValueAtTime(shot ? voice : hit ? 130 : type === 'wave' ? 330 : 420, now);
     osc.frequency.exponentialRampToValueAtTime(shot ? 300 : hit ? 25 : 850, now + duration);
     gain.gain.setValueAtTime(shot ? .022 : hit ? .06 : .04, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
@@ -196,7 +196,7 @@ export class GameEngine {
     this.model.step(dt, { move: this.leftStick ? { x: this.leftStick.dx, y: this.leftStick.dy } : { x: mx, y: my }, aim, shooting: this.mouseDown || !!(kx || ky) || !!(this.rightStick && Math.hypot(this.rightStick.dx, this.rightStick.dy) > .15) });
     if (previousStatus !== this.model.status) { this.resetInputs(); this.notify(); }
     for (const ev of this.model.events) {
-      this.sound(ev.type);
+      this.sound(ev.type, ev.weaponId);
       if (ev.type === 'impact') this.burst(ev.x, ev.y, ev.color ?? '#a4ffcc', 3, 5);
       if (ev.type === 'shield') this.burst(ev.x, ev.y, '#77d4ff', 45, 16);
       if (ev.type === 'upgrade') { this.burst(ev.x, ev.y, ev.color ?? '#a4ffcc', 70, 20); }

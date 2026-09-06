@@ -11,10 +11,10 @@ Research conducted September 5, 2026. These games provide design principles; Geo
 ## Run rules
 
 1. Begin with the Needle: one stream, no score-triggered weapon upgrade.
-2. Clearing wave one always offers three distinct weapons from exactly ten choices.
+2. Clearing wave one always offers three distinct weapons from exactly ten choices. Choosing one replaces the Needle.
 3. Begin each run with two shared rerolls. Each reroll replaces all three choices; the initial two rerolls expose nine different weapons. Additional rerolls can be selected as rewards.
-4. Later clears offer three choices drawn from current-weapon upgrades, alternate weapons, and 36 relics. The first offer of each later draft includes a current-weapon upgrade while one is eligible. Rerolling can trade that guarantee for a new set.
-5. Weapon level and rarity are separate. Explicit upgrades raise levels, improve damage and cadence, and can improve weapon rarity. At maximum level, eligible upgrades can still raise quality. Switching weapons retains relics and equips the new weapon at the level printed on its card.
+4. Clearing wave five offers three distinct weapons from the nine not already equipped. The selected level-2 weapon joins the first; both fire simultaneously at their own cadence. These are the only two weapon drafts. Waves 2–4 and every clear after wave 5 offer only upgrades for equipped weapons and 36 relics. Rerolls cannot introduce weapon choices on other waves. The initial power-up draft includes an upgrade for an eligible equipped weapon; either slot can be targeted.
+5. Weapon level and rarity are separate. Explicit upgrades raise levels, improve damage and cadence, and can improve weapon rarity. At maximum level, eligible upgrades can still raise quality. Upgrade cards name the weapon they improve. The second weapon addition preserves the first weapon’s level and rarity; global damage, fire-rate, and projectile-effect relics benefit both. No weapon swaps or additions occur after wave five.
 6. Common, uncommon, rare, epic, and legendary rewards have different effect magnitudes. Luck and wave progression influence rarity. Capped or inapplicable effects are filtered from the pool.
 7. Combat, survival time, input, and resource consumption stop while choosing. A selection is validated against the current offer and can be applied only once.
 8. A new run resets weapons, relics, levels, lives, shields, and rerolls. Only personal best and sound preference persist on the device.

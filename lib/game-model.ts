@@ -1,11 +1,11 @@
-import { WEAPONS, RELICS, RARITIES, MAX_WEAPON_LEVEL, getWeapon, emptyStats, weaponProfile, relicValue, rollRarity, type WeaponState, type WeaponProfile, type RunStats, type Reward, type OwnedRelic, type RelicDef, type Stat } from './roguelike.ts';
+import { WEAPONS, RELICS, RARITIES, MAX_WEAPON_LEVEL, getWeapon, emptyStats, weaponProfile, relicValue, rollRarity, type WeaponId, type WeaponState, type WeaponProfile, type RunStats, type Reward, type OwnedRelic, type RelicDef, type Stat } from './roguelike.ts';
 export type Status = 'ready' | 'playing' | 'paused' | 'reward' | 'over';
 export type EnemyKind = 'drifter' | 'chaser' | 'spinner';
 export type Vec = { x: number; y: number };
 export type Enemy = Vec & { id: number; kind: EnemyKind; vx: number; vy: number; angle: number; age: number; radius: number; hp: number; maxHp: number; elite: boolean; burn: number; burnTime: number; slow: number; slowTime: number; flash: number };
 export type Bullet = Vec & { id: number; vx: number; vy: number; age: number; damage?: number; radius?: number; lifetime?: number; color?: string; pierce?: number; bounces?: number; homing?: number; blast?: number; chain?: number; burn?: number; slow?: number; knockback?: number; rebound?: number; execute?: number; hits?: Set<number>; bounceCount?: number; critical?: boolean; style?: string };
-export type GameEvent = { type: 'shot' | 'kill' | 'hit' | 'bomb' | 'wave' | 'start' | 'reward' | 'upgrade' | 'impact' | 'arc' | 'blast' | 'shield'; x: number; y: number; tx?: number; ty?: number; radius?: number; color?: string; kind?: EnemyKind };
-export type GameSnapshot = { status: Status; score: number; best: number; lives: number; bombs: number; wave: number; multiplier: number; kills: number; time: number; waveBanner: boolean; shields: number; rerolls: number; weapon: WeaponProfile; rewards: Reward[]; relics: OwnedRelic[]; waveProgress: number };
+export type GameEvent = { type: 'shot' | 'kill' | 'hit' | 'bomb' | 'wave' | 'start' | 'reward' | 'upgrade' | 'impact' | 'arc' | 'blast' | 'shield'; x: number; y: number; tx?: number; ty?: number; radius?: number; color?: string; kind?: EnemyKind; weaponId?: WeaponId };
+export type GameSnapshot = { status: Status; score: number; best: number; lives: number; bombs: number; wave: number; multiplier: number; kills: number; time: number; waveBanner: boolean; shields: number; rerolls: number; weapons: WeaponProfile[]; rewards: Reward[]; relics: OwnedRelic[]; waveProgress: number };
 export type Input = { move: Vec; aim: Vec; shooting: boolean };
 export const COLORS = { drifter: '#30d9ff', chaser: '#ff4f96', spinner: '#ffb456', player: '#a4ffcc' };
 export const POINTS = { drifter: 100, chaser: 200, spinner: 300 };
@@ -30,27 +30,27 @@ export class GameModel {
   score = 0; best = 0; lives = 3; bombs = 3; wave = 1; multiplier = 1; kills = 0; time = 0;
   width = 110; height = 60; invulnerable = 0; waveBanner = 0; shake = 0;
   shields = 0; rerolls = 2;
-  weapon: WeaponState = { id: 'needle', level: 1, rarity: 'common' };
+  weapons: WeaponState[] = [{ id: 'needle', level: 1, rarity: 'common' }];
   stats: RunStats = emptyStats();
   rewards: Reward[] = []; relics: OwnedRelic[] = []; owned: Record<string, number> = {};
   player = { x: 0, y: 0, angle: Math.PI / 2, vx: 0, vy: 0 };
   enemies: Enemy[] = []; bullets: Bullet[] = []; events: GameEvent[] = [];
-  private id = 0; private shotClock = 0; private spawnClock = 0; private remaining = 0; private nextWave = 0; private streak = 0; private spawnSide = 0; private offerSerial = 0; private rewardSeen = new Set<string>(); private orbitalClock = 0; private bombCredit = 0;
+  private id = 0; private shotClocks = new Map<WeaponId, number>(); private spawnClock = 0; private remaining = 0; private nextWave = 0; private streak = 0; private spawnSide = 0; private offerSerial = 0; private rewardSeen = new Set<string>(); private orbitalClock = 0; private bombCredit = 0;
   random: () => number;
   constructor(random = Math.random) { this.random = random; }
-  get profile() { return weaponProfile(this.weapon, this.stats, { moving: Math.hypot(this.player.vx, this.player.vy) > 3, shields: this.shields, lives: this.lives }); }
+  get profiles() { return this.weapons.map(weapon => weaponProfile(weapon, this.stats, { moving: Math.hypot(this.player.vx, this.player.vy) > 3, shields: this.shields, lives: this.lives })); }
   setBounds(width: number, height: number) {
     this.width = width; this.height = height;
     this.player.x = clamp(this.player.x, -width / 2 + 2, width / 2 - 2); this.player.y = clamp(this.player.y, -height / 2 + 2, height / 2 - 2);
     for (const e of this.enemies) { e.x = clamp(e.x, -width / 2 + 1, width / 2 - 1); e.y = clamp(e.y, -height / 2 + 1, height / 2 - 1); }
   }
-  snapshot(): GameSnapshot { return { status: this.status, score: this.score, best: this.best, lives: this.lives, bombs: this.bombs, wave: this.wave, multiplier: this.multiplier, kills: this.kills, time: this.time, waveBanner: this.waveBanner > 0, shields: this.shields, rerolls: this.rerolls, weapon: this.profile, rewards: this.rewards.map(r => ({ ...r })), relics: this.relics.map(r => ({ ...r })), waveProgress: this.status === 'ready' ? 0 : clamp(1 - (this.remaining + this.enemies.length) / getWaveTuning(this.wave).enemyCount, 0, 1) }; }
+  snapshot(): GameSnapshot { return { status: this.status, score: this.score, best: this.best, lives: this.lives, bombs: this.bombs, wave: this.wave, multiplier: this.multiplier, kills: this.kills, time: this.time, waveBanner: this.waveBanner > 0, shields: this.shields, rerolls: this.rerolls, weapons: this.profiles, rewards: this.rewards.map(r => ({ ...r })), relics: this.relics.map(r => ({ ...r })), waveProgress: this.status === 'ready' ? 0 : clamp(1 - (this.remaining + this.enemies.length) / getWaveTuning(this.wave).enemyCount, 0, 1) }; }
   start() {
     this.status = 'playing'; this.score = 0; this.lives = 3; this.bombs = 3; this.wave = 1; this.multiplier = 1; this.kills = 0; this.time = 0; this.streak = 0;
-    this.shields = 0; this.rerolls = 2; this.weapon = { id: 'needle', level: 1, rarity: 'common' }; this.stats = emptyStats(); this.rewards = []; this.relics = []; this.owned = {}; this.rewardSeen.clear(); this.bombCredit = 0; this.orbitalClock = 0;
+    this.shields = 0; this.rerolls = 2; this.weapons = [{ id: 'needle', level: 1, rarity: 'common' }]; this.stats = emptyStats(); this.rewards = []; this.relics = []; this.owned = {}; this.rewardSeen.clear(); this.bombCredit = 0; this.orbitalClock = 0;
     this.enemies = []; this.bullets = []; this.events = [{ type: 'start', x: 0, y: 0 }];
     this.player = { x: 0, y: 0, angle: Math.PI / 2, vx: 0, vy: 0 };
-    this.shotClock = 0; this.invulnerable = 2.5; this.shake = 0; this.beginWave();
+    this.shotClocks.clear(); this.invulnerable = 2.5; this.shake = 0; this.beginWave();
   }
   pause() { if (this.status === 'playing') this.status = 'paused'; }
   resume() { if (this.status === 'paused') this.status = 'playing'; }
@@ -70,23 +70,23 @@ export class GameModel {
     if ((this.owned[def.id] ?? 0) >= def.maxStacks) return false;
     if (def.stat && this.stats[def.stat] >= (CAPS[def.stat] ?? Infinity)) return false;
     if (def.effect === 'lives' && this.lives >= 9 || def.effect === 'shields' && this.shields >= 6 || def.effect === 'bombs' && this.bombs >= 9 || def.effect === 'glass' && this.lives <= 1) return false;
-    if (def.id === 'rebound' && !this.profile.bounces || def.id === 'rupture' && !this.stats.crit || def.id === 'fortress' && !this.shields && !this.stats.shieldRegen) return false;
+    if (def.id === 'rebound' && !this.profiles.some(p => p.bounces) || def.id === 'rupture' && !this.stats.crit || def.id === 'fortress' && !this.shields && !this.stats.shieldRegen) return false;
     return true;
   }
   private generateRewards() {
-    const first = this.wave === 1;
-    const keys = first ? WEAPONS.map(w => `weapon:${w.id}`) : [
-      ...(this.weapon.level < MAX_WEAPON_LEVEL || this.weapon.rarity !== 'legendary' ? ['upgrade'] : []),
+    const first = this.wave === 1, weaponDraft = first || this.wave === 5;
+    const keys = weaponDraft ? WEAPONS.filter(w => !this.weapons.some(owned => owned.id === w.id)).map(w => `weapon:${w.id}`) : [
+      ...this.weapons.filter(w => w.level < MAX_WEAPON_LEVEL || w.rarity !== 'legendary').map(w => `upgrade:${w.id}`),
       ...RELICS.filter(d => this.canOffer(d)).map(d => `relic:${d.id}`),
-      ...WEAPONS.filter(w => w.id !== this.weapon.id).map(w => `weapon:${w.id}`),
     ];
     let pool = keys.filter(k => !this.rewardSeen.has(k));
     if (pool.length < 3) { this.rewardSeen = new Set(this.rewards.map(r => r.key)); pool = keys.filter(k => !this.rewardSeen.has(k)); }
     const selected: string[] = [];
-    // Keep investing in the current weapon a regular, explicit option.
-    if (!first && pool.includes('upgrade')) { selected.push('upgrade'); pool = pool.filter(k => k !== 'upgrade'); }
+    // Offer investment in either equipped weapon without favoring the first slot.
+    const upgrades = pool.filter(k => k.startsWith('upgrade:'));
+    if (upgrades.length) { const key = upgrades[Math.floor(this.random() * upgrades.length)]; selected.push(key); pool = pool.filter(k => k !== key); }
     while (selected.length < 3 && pool.length) {
-      const weights = pool.map(k => first ? 1 : k.startsWith('weapon:') ? .35 : k === 'relic:reroll' ? 1.5 : 1);
+      const weights = pool.map(k => k === 'relic:reroll' ? 1.5 : 1);
       let roll = this.random() * weights.reduce((a, b) => a + b, 0), index = pool.length - 1;
       for (let i = 0; i < pool.length; i++) { roll -= weights[i]; if (roll <= 0) { index = i; break; } }
       selected.push(pool[index]); pool.splice(index, 1);
@@ -96,14 +96,15 @@ export class GameModel {
       const id = `${this.wave}:${++this.offerSerial}:${key}`;
       if (key.startsWith('weapon:')) {
         const weapon = WEAPONS.find(w => key === `weapon:${w.id}`)!;
-        const level = first ? 1 : Math.min(5, 1 + Math.floor((this.wave - 1) / 4));
-        return { id, key, type: 'weapon', name: weapon.name, rarity, category: weapon.tagline, description: `${weapon.description} Replaces ${getWeapon(this.weapon.id).name} at level ${level}.`, weaponId: weapon.id, amount: level };
+        const level = first ? 1 : 2;
+        return { id, key, type: 'weapon', name: weapon.name, rarity, category: weapon.tagline, description: `${weapon.description} ${first ? 'Replaces the Needle at level 1.' : `Adds a level ${level} weapon alongside ${getWeapon(this.weapons[0].id).name}. Both fire together.`}`, weaponId: weapon.id, amount: level };
       }
-      if (key === 'upgrade') {
-        if (this.weapon.level === MAX_WEAPON_LEVEL) rarity = RARITIES[Math.max(RARITIES.indexOf(rarity), RARITIES.indexOf(this.weapon.rarity) + 1)];
-        const amount = Math.min(MAX_WEAPON_LEVEL - this.weapon.level, rarity === 'legendary' ? 3 : rarity === 'epic' ? 2 : 1);
-        const nextRarity = RARITIES[Math.max(RARITIES.indexOf(this.weapon.rarity), RARITIES.indexOf(rarity))];
-        return { id, key, type: 'upgrade', name: `${getWeapon(this.weapon.id).name} ${amount ? `+${amount}` : 'Ascension'}`, rarity, category: 'UPGRADE YOUR WEAPON', description: `${amount ? `Level ${this.weapon.level} → ${this.weapon.level + amount}. More damage and faster fire. ` : ''}${nextRarity !== this.weapon.rarity ? `Raise weapon quality to ${nextRarity}. ` : ''}Keep your firing pattern and all relics.`, weaponId: this.weapon.id, amount };
+      if (key.startsWith('upgrade:')) {
+        const weapon = this.weapons.find(w => key === `upgrade:${w.id}`)!;
+        if (weapon.level === MAX_WEAPON_LEVEL) rarity = RARITIES[Math.max(RARITIES.indexOf(rarity), RARITIES.indexOf(weapon.rarity) + 1)];
+        const amount = Math.min(MAX_WEAPON_LEVEL - weapon.level, rarity === 'legendary' ? 3 : rarity === 'epic' ? 2 : 1);
+        const nextRarity = RARITIES[Math.max(RARITIES.indexOf(weapon.rarity), RARITIES.indexOf(rarity))];
+        return { id, key, type: 'upgrade', name: `${getWeapon(weapon.id).name} ${amount ? `+${amount}` : 'Ascension'}`, rarity, category: 'WEAPON UPGRADE', description: `${getWeapon(weapon.id).name}: ${amount ? `level ${weapon.level} → ${weapon.level + amount}. More damage and faster fire. ` : ''}${nextRarity !== weapon.rarity ? `Raise weapon quality to ${nextRarity}. ` : ''}Applies to this weapon. Keep your full loadout and relics.`, weaponId: weapon.id, amount };
       }
       const def = RELICS.find(d => key === `relic:${d.id}`)!;
       const amount = def.stat ? Math.min(relicValue(def, rarity), (CAPS[def.stat] ?? Infinity) - this.stats[def.stat]) : relicValue(def, rarity);
@@ -117,10 +118,16 @@ export class GameModel {
   chooseReward(id: string) {
     if (this.status !== 'reward') return false;
     const reward = this.rewards.find(r => r.id === id); if (!reward) return false;
-    if (reward.type === 'weapon') this.weapon = { id: reward.weaponId!, level: reward.amount, rarity: reward.rarity };
+    if (reward.type === 'weapon') {
+      if (this.wave !== 1 && this.wave !== 5 || this.weapons.some(w => w.id === reward.weaponId) || !WEAPONS.some(w => w.id === reward.weaponId)) return false;
+      const weapon = { id: reward.weaponId!, level: reward.amount, rarity: reward.rarity };
+      if (this.wave === 1) this.weapons = [weapon];
+      else { if (this.weapons.length !== 1) return false; this.weapons.push(weapon); }
+    }
     else if (reward.type === 'upgrade') {
-      this.weapon.level += reward.amount;
-      this.weapon.rarity = RARITIES[Math.max(RARITIES.indexOf(this.weapon.rarity), RARITIES.indexOf(reward.rarity))];
+      const weapon = this.weapons.find(w => w.id === reward.weaponId); if (!weapon) return false;
+      weapon.level = Math.min(MAX_WEAPON_LEVEL, weapon.level + reward.amount);
+      weapon.rarity = RARITIES[Math.max(RARITIES.indexOf(weapon.rarity), RARITIES.indexOf(reward.rarity))];
     } else {
       const def = RELICS.find(d => d.id === reward.relicId)!;
       if (def.stat) this.stats[def.stat] += reward.amount;
@@ -134,7 +141,7 @@ export class GameModel {
       this.relics.push({ id: def.id, name: def.name, rarity: reward.rarity, description: reward.description });
     }
     this.rewards = []; this.status = 'playing'; this.wave++; this.player.vx = 0; this.player.vy = 0;
-    this.invulnerable = Math.max(this.invulnerable, 1.8); this.shotClock = .15; this.events.push({ type: 'upgrade', x: this.player.x, y: this.player.y, color: this.profile.color }); this.beginWave(); return true;
+    this.invulnerable = Math.max(this.invulnerable, 1.8); this.shotClocks = new Map(this.weapons.map(w => [w.id, .15])); this.events.push({ type: 'upgrade', x: this.player.x, y: this.player.y, color: this.profiles.find(p => p.id === reward.weaponId)?.color ?? COLORS.player }); this.beginWave(); return true;
   }
   spawnEnemy(kind?: EnemyKind, entrySide?: number) {
     const side = entrySide ?? Math.floor(this.random() * 4), w = this.width / 2 - 2, h = this.height / 2 - 2;
@@ -189,7 +196,7 @@ export class GameModel {
       const a = this.player.angle + offset, critical = this.random() < profile.crit;
       this.bullets.push({ id: ++this.id, x: this.player.x + Math.cos(a) * 1.5, y: this.player.y + Math.sin(a) * 1.5, vx: Math.cos(a) * profile.speed, vy: Math.sin(a) * profile.speed, age: 0, damage: profile.damage * (critical ? profile.critDamage : 1), radius: profile.radius, lifetime: profile.lifetime, color: critical ? '#ffffff' : profile.color, pierce: (profile.pierce ?? 0) + (critical && profile.synergies.includes('Deadeye') ? 2 : 0), bounces: profile.bounces, homing: profile.homing, blast: profile.blast, chain: profile.chain, burn: profile.burn, slow: profile.slow, knockback: profile.knockback, rebound: profile.rebound, execute: profile.execute, hits: new Set(), bounceCount: 0, critical, style: profile.id });
     }
-    this.events.push({ type: 'shot', x: this.player.x, y: this.player.y });
+    this.events.push({ type: 'shot', x: this.player.x, y: this.player.y, weaponId: profile.id });
   }
   orbitPositions(): Vec[] { return Array.from({ length: Math.min(6, this.stats.orbitals) }, (_, i) => ({ x: this.player.x + Math.cos(this.time * 2.2 + i / this.stats.orbitals * Math.PI * 2) * 4.8, y: this.player.y + Math.sin(this.time * 2.2 + i / this.stats.orbitals * Math.PI * 2) * 4.8 })); }
   step(dt: number, input: Input) {
@@ -200,9 +207,11 @@ export class GameModel {
     this.player.vx += (movement.x * speed - this.player.vx) * easing; this.player.vy += (movement.y * speed - this.player.vy) * easing;
     this.player.x = clamp(this.player.x + this.player.vx * dt, -this.width / 2 + 1.8, this.width / 2 - 1.8); this.player.y = clamp(this.player.y + this.player.vy * dt, -this.height / 2 + 1.8, this.height / 2 - 1.8);
     const aim = normal(input.aim.x, input.aim.y); if (Math.hypot(aim.x, aim.y) > .1) this.player.angle = Math.atan2(aim.y, aim.x);
-    const profile = this.profile;
-    this.shotClock -= dt;
-    if (input.shooting && this.shotClock <= 0) { this.shotClock = Math.max(this.shotClock, -dt) + profile.interval; this.shoot(profile); }
+    for (const profile of this.profiles) {
+      let clock = (this.shotClocks.get(profile.id) ?? 0) - dt;
+      if (input.shooting && clock <= 0) { clock = Math.max(clock, -dt) + profile.interval; this.shoot(profile); }
+      this.shotClocks.set(profile.id, clock);
+    }
     if (this.enemies.length < MAX_ACTIVE_ENEMIES) this.spawnClock -= dt;
     if (this.remaining > 0 && this.spawnClock <= 0 && this.enemies.length < MAX_ACTIVE_ENEMIES) {
       const count = Math.min(tuning.burstSize, this.remaining, MAX_ACTIVE_ENEMIES - this.enemies.length);

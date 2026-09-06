@@ -11,9 +11,9 @@ A Geometry Wars inspired roguelike arena shooter built with Three.js, React, and
 
 You start with the Needle's single stream, three lives, three bombs, and **two rerolls for the entire run**. Score multipliers never upgrade the weapon.
 
-Wave one always ends with three different weapon choices from a pool of **ten weapons**. The two initial rerolls expose nine different weapons. Each subsequent wave ends with three choices: weapon upgrades, alternate weapons, or items from a pool of **36 relics**. Extra rerolls are obtainable as selected rewards and carry between waves.
+Wave one always ends with three different weapon choices from a pool of **ten weapons**. The two initial rerolls expose nine different weapons. Wave five is the only other weapon draft: three choices from the nine weapons you do not own. This adds a second weapon that fires alongside your first. Waves 2–4 and every wave after 5 offer only upgrades for equipped weapons or items from a pool of **36 relics**. Rerolls always stay within the current draft type. Extra rerolls are obtainable as selected rewards and carry between waves.
 
-Rewards come in common, uncommon, rare, epic, and legendary qualities. Weapons level up only through chosen upgrades, to level 8. Upgrades can also raise weapon rarity. At maximum level, non-legendary weapons can still receive quality upgrades. Replacement weapons start at the level shown on their card; all collected relics remain active. Every new run resets the build and rerolls. Only personal best and sound preference persist on your device.
+Rewards come in common, uncommon, rare, epic, and legendary qualities. Weapons level up only through chosen upgrades, to level 8. Upgrades can also raise weapon rarity. At maximum level, non-legendary weapons can still receive quality upgrades. The wave-one choice replaces the Needle at level 1. The wave-five choice adds a level-2 weapon while preserving the first weapon’s level and rarity. Each weapon has its own firing cadence and targeted level upgrades. Shared damage, fire-rate, and projectile-effect relics apply to both. No further weapon additions or swaps are offered. Every new run resets the build and rerolls. Only personal best and sound preference persist on your device.
 
 ## Arsenal and combinations
 
@@ -53,7 +53,7 @@ npm run build
 - `lib/game-model.ts`: deterministic combat, rewards, shared rerolls, effects, and progression.
 - `lib/game-engine.ts`: Three.js rendering, input, transient effects, and audio.
 - `components/reward-screen.tsx`: the three-card selection interface.
-- `tests/`: simulation tests covering the initial draft, rerolls, selection validation, upgrades, every weapon, relic effects, combat combinations, crowd caps, and 20-wave progression.
+- `tests/`: simulation tests covering both weapon drafts, every weapon pair, rerolls, selection validation, upgrades, every weapon, relic effects, combat combinations, crowd caps, and 20-wave progression.
 
 Browser focus loss pauses combat. Reward selection freezes gameplay and survival time. The interface supports keyboard, touch, fullscreen, graphics-error recovery, and reduced-motion preferences. No browser interaction testing was requested; simulation tests and compilation do not establish subjective gameplay balance or visual QA.
 

@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ArenaAtmosphere } from './arena-atmosphere';
+import { createProjectileMesh } from './projectile-rendering';
 import { GameModel, COLORS, type EnemyKind, type GameSnapshot, type Vec, MAX_BULLETS } from './game-model';
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: THREE.Color };
@@ -54,8 +55,8 @@ export class GameEngine {
     this.ship.add(this.line([[.7, 0], [-.65, .5], [-.4, 0], [-.65, -.5]], '#effff4'));
     this.shield = this.circle(2, '#a4ffcc', .3); this.ship.add(this.shield); this.scene.add(this.ship);
     this.ring = this.circle(1, '#a4ffcc', .8); this.ring.visible = false; this.scene.add(this.ring);
-    const bulletGeometry = this.geometry(new THREE.PlaneGeometry(1, 1));
-    this.bulletMesh = new THREE.InstancedMesh(bulletGeometry, this.material(new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').multiplyScalar(1.8), blending: THREE.AdditiveBlending, depthWrite: false })), MAX_BULLETS);
+    const bullets = createProjectileMesh(MAX_BULLETS);
+    this.geometry(bullets.geometry); this.material(bullets.material); this.bulletMesh = bullets;
     for (let i = 0; i < 6; i++) { const drone = this.line([[0, .7], [.7, 0], [0, -.7], [-.7, 0]], '#90dfff'); drone.visible = false; this.orbitals.push(drone); this.scene.add(drone); }
     for (let i = 0; i < 48; i++) {
       const geo = this.geometry(new THREE.BufferGeometry()); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
@@ -63,7 +64,7 @@ export class GameEngine {
       line.visible = false; line.frustumCulled = false; this.arcs.push({ line, life: 0 }); this.scene.add(line);
     }
     for (let i = 0; i < 24; i++) { const ring = this.circle(1, '#ffd18a', .7); ring.visible = false; this.blasts.push({ ring, life: 0, radius: 1 }); this.scene.add(ring); }
-    this.bulletMesh.count = 0; this.bulletMesh.frustumCulled = false; this.scene.add(this.bulletMesh);
+    this.scene.add(this.bulletMesh);
     const pg = this.geometry(new THREE.BufferGeometry()); pg.setAttribute('position', new THREE.BufferAttribute(this.particlePositions, 3)); pg.setAttribute('color', new THREE.BufferAttribute(this.particleColors, 3)); pg.setDrawRange(0, 0);
     this.particleMesh = new THREE.Points(pg, this.material(new THREE.PointsMaterial({ size: 2.3 * this.renderer.getPixelRatio(), vertexColors: true, sizeAttenuation: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))); this.particleMesh.frustumCulled = false; this.scene.add(this.particleMesh);
     this.atmosphere = new ArenaAtmosphere(texture => {

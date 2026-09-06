@@ -1,4 +1,4 @@
-import { WEAPONS, RELICS, RARITIES, MAX_WEAPON_LEVEL, getWeapon, emptyStats, weaponProfile, relicValue, rollRarity, type WeaponId, type WeaponState, type WeaponProfile, type RunStats, type Reward, type OwnedRelic, type RelicDef, type Stat } from './roguelike.ts';
+import { WEAPONS, RELICS, RARITIES, MAX_WEAPON_LEVEL, emptyStats, weaponProfile, upgradedWeapon, weaponUpgradePreview, relicValue, rollRarity, type WeaponId, type WeaponState, type WeaponProfile, type RunStats, type Reward, type OwnedRelic, type RelicDef, type Stat } from './roguelike.ts';
 export type Status = 'ready' | 'playing' | 'paused' | 'reward' | 'over';
 export type EnemyKind = 'drifter' | 'chaser' | 'spinner';
 export type Vec = { x: number; y: number };
@@ -99,18 +99,20 @@ export class GameModel {
       if (key.startsWith('weapon:')) {
         const weapon = WEAPONS.find(w => key === `weapon:${w.id}`)!;
         const level = first ? 1 : 2;
-        return { id, key, type: 'weapon', name: weapon.name, rarity, category: weapon.tagline, description: `${weapon.description} ${first ? 'Replaces the Needle at level 1.' : `Adds a level ${level} weapon alongside ${getWeapon(this.weapons[0].id).name}. Both fire together.`}`, weaponId: weapon.id, amount: level };
+        return { id, key, type: 'weapon', name: weapon.name, rarity, category: weapon.tagline, description: weapon.description, weaponId: weapon.id, amount: level };
       }
       if (key.startsWith('upgrade:')) {
         const weapon = this.weapons.find(w => key === `upgrade:${w.id}`)!;
         if (weapon.level === MAX_WEAPON_LEVEL) rarity = RARITIES[Math.max(RARITIES.indexOf(rarity), RARITIES.indexOf(weapon.rarity) + 1)];
         const amount = Math.min(MAX_WEAPON_LEVEL - weapon.level, rarity === 'legendary' ? 3 : rarity === 'epic' ? 2 : 1);
-        const nextRarity = RARITIES[Math.max(RARITIES.indexOf(weapon.rarity), RARITIES.indexOf(rarity))];
-        return { id, key, type: 'upgrade', name: `${getWeapon(weapon.id).name} ${amount ? `+${amount}` : 'Ascension'}`, rarity, category: 'WEAPON UPGRADE', description: `${getWeapon(weapon.id).name}: ${amount ? `level ${weapon.level} → ${weapon.level + amount}. More damage and faster fire. ` : ''}${nextRarity !== weapon.rarity ? `Raise weapon quality to ${nextRarity}. ` : ''}Applies to this weapon. Keep your full loadout and relics.`, weaponId: weapon.id, amount };
+        return { id, key, type: 'upgrade', ...weaponUpgradePreview(weapon, this.stats, amount, rarity), rarity, category: 'WEAPON UPGRADE', weaponId: weapon.id, amount };
       }
       const def = RELICS.find(d => key === `relic:${d.id}`)!;
       const amount = def.stat ? Math.min(relicValue(def, rarity), (CAPS[def.stat] ?? Infinity) - this.stats[def.stat]) : relicValue(def, rarity);
-      return { id, key, type: 'relic', name: def.name, rarity, category: def.category, description: def.describe(amount), relicId: def.id, amount };
+      const received = def.effect === 'lives' ? Math.min(amount, 9 - this.lives) : def.effect === 'shields' ? Math.min(amount, 6 - this.shields) : def.effect === 'bombs' ? Math.min(amount, 9 - this.bombs) : amount;
+      const fireRateGain = Math.min(3 - this.stats.fireRate, amount / 2);
+      const description = def.id === 'fusillade' ? `All weapons: +${Number((amount * 100).toFixed(2))}% damage bonus${fireRateGain > 0 ? `; +${Number((fireRateGain * 100).toFixed(2))}% fire-rate bonus` : ''}.` : def.describe(received);
+      return { id, key, type: 'relic', name: def.name, rarity, category: def.category, description, relicId: def.id, amount };
     });
   }
   rerollRewards() {
@@ -128,8 +130,7 @@ export class GameModel {
     }
     else if (reward.type === 'upgrade') {
       const weapon = this.weapons.find(w => w.id === reward.weaponId); if (!weapon) return false;
-      weapon.level = Math.min(MAX_WEAPON_LEVEL, weapon.level + reward.amount);
-      weapon.rarity = RARITIES[Math.max(RARITIES.indexOf(weapon.rarity), RARITIES.indexOf(reward.rarity))];
+      Object.assign(weapon, upgradedWeapon(weapon, reward.amount, reward.rarity));
     } else {
       const def = RELICS.find(d => d.id === reward.relicId)!;
       if (def.stat) this.stats[def.stat] += reward.amount;

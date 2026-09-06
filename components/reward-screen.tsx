@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useRef, type CSSProperties } from 'react';
 import {
-  ArrowUpRight,
   RotateCcw,
   Shield,
   Heart,
@@ -199,125 +198,136 @@ export function RewardScreen({
   onChoose: (id: string) => void;
   onReroll: () => void;
 }) {
-  const synergies = [...new Set(game.weapons.flatMap((w) => w.synergies))];
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, [game.wave]);
+  const notes = [
+    ...new Set(
+      game.rewards.map((reward) => reward.comparisonNote).filter(Boolean),
+    ),
+  ];
   return (
     <section className="reward-screen" aria-label="Choose your wave reward">
       <div className="reward-heading">
-        <div>
-          <div className="eyebrow amber">
-            WAVE {String(game.wave).padStart(2, '0')} CLEARED
-          </div>
-          <h2 ref={heading} tabIndex={-1}>
-            {game.wave === 1
-              ? 'Arm yourself.'
-              : game.wave === 5
-                ? 'Add a second weapon.'
-                : 'Refit. Then redeploy.'}
-          </h2>
-          <p>
-            {game.wave === 1
-              ? 'Three options from ten weapons. Choose one; add a second after wave 5.'
-              : game.wave === 5
-                ? 'Both weapons fire together. This is your final weapon selection.'
-                : 'Upgrade an equipped weapon or take a power-up for your build.'}
-          </p>
-        </div>
-        <div className="draft-badge">
-          <Sparkles size={16} />
-          <span>
-            CHOOSE
-            <br />
-            <b>1 OF 3</b>
-          </span>
-        </div>
+        <h2 ref={heading} tabIndex={-1}>
+          {game.wave === 1
+            ? 'Choose a weapon'
+            : game.wave === 5
+              ? 'Add a weapon'
+              : 'Choose a power-up'}
+        </h2>
+        {game.wave === 1 ? (
+          <p>Add a second weapon after wave 5.</p>
+        ) : game.wave === 5 ? (
+          <p>Both weapons stay active.</p>
+        ) : null}
       </div>
       <div className="reward-cards" aria-label="Three reward choices">
-        {game.rewards.map((reward, i) => (
-          <button
-            key={reward.id}
-            className={`reward-card ${reward.type}`}
-            style={
-              { '--rarity': FIELD_RARITY_COLOR[reward.rarity] } as CSSProperties
-            }
-            onClick={() => onChoose(reward.id)}
-            aria-label={`Choose ${reward.rarity} ${reward.name}. ${reward.description}`}
-          >
-            <div className="card-topline">
-              <span className="rarity">
-                <i />
-                {reward.rarity}
-              </span>
-              <kbd>{i + 1}</kbd>
-            </div>
-            <div className="reward-visual">
-              {reward.type === 'weapon' ? (
-                <WeaponDiagram
-                  id={reward.weaponId!}
-                  color={FIELD_RARITY_COLOR[reward.rarity]}
-                />
-              ) : (
-                <RewardIcon reward={reward} />
-              )}
-            </div>
-            <span className="reward-category">{reward.category}</span>
-            <h3>{reward.name}</h3>
-            <p>{reward.description}</p>
-            <div className="card-choose">
-              {reward.type === 'weapon'
-                ? `${game.wave === 5 ? 'ADD WEAPON' : 'EQUIP'} · LEVEL ${reward.amount}`
-                : reward.type === 'upgrade'
-                  ? 'UPGRADE & CONTINUE'
-                  : 'TAKE & CONTINUE'}
-              <ArrowUpRight size={18} />
-            </div>
-          </button>
-        ))}
-      </div>
-      <div className="reward-bottom">
-        <div>
-          <button
-            className="reroll-button"
-            onClick={onReroll}
-            disabled={game.rerolls === 0}
-          >
-            <RotateCcw size={16} />
-            REROLL CHOICES<span>{game.rerolls} LEFT</span>
-            <kbd>R</kbd>
-          </button>
-          <p>
-            {game.rerolls === 0
-              ? 'No rerolls left. Second Opinion rewards can grant more.'
-              : 'Shared across the entire run. Spend wisely.'}
-          </p>
-        </div>
-        <div className="current-weapon">
-          <span>
-            YOUR LOADOUT{game.weapons.length === 2 ? ' · BOTH ACTIVE' : ''}
-          </span>
-          {game.weapons.map((weapon) => (
-            <b
-              key={weapon.id}
-              style={{ color: FIELD_RARITY_COLOR[weapon.rarity] }}
+        {game.rewards.map((reward, i) => {
+          const comparison = reward.changes
+            ?.map(
+              (change) =>
+                `${change.label}: ${change.before} to ${change.after}.`,
+            )
+            .join(' ');
+          const choiceLabel = [
+            `Choose ${reward.name}.`,
+            reward.type === 'weapon' ? `Level ${reward.amount}.` : '',
+            reward.type !== 'upgrade' ? `${reward.rarity}.` : '',
+            reward.description,
+            comparison,
+            reward.comparisonNote,
+          ]
+            .filter(Boolean)
+            .join(' ');
+          return (
+            <button
+              key={reward.id}
+              className={`reward-card ${reward.type}`}
+              style={
+                {
+                  '--rarity': FIELD_RARITY_COLOR[reward.rarity],
+                } as CSSProperties
+              }
+              onClick={() => onChoose(reward.id)}
+              aria-label={choiceLabel}
             >
-              {weapon.name}{' '}
-              <small>
-                LV. {weapon.level} · {weapon.rarity}
-              </small>
-            </b>
-          ))}
-          <span className="current-quality">{game.relics.length} relics</span>
-        </div>
+              <div className="card-topline">
+                {reward.type !== 'upgrade' ? (
+                  <span className="rarity">
+                    <i />
+                    {reward.rarity}
+                    {reward.type === 'weapon' && (
+                      <span className="draft-level">Lv. {reward.amount}</span>
+                    )}
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <kbd className="desktop-hint">{i + 1}</kbd>
+              </div>
+              {reward.type === 'weapon' && (
+                <div className="reward-visual">
+                  <WeaponDiagram
+                    id={reward.weaponId!}
+                    color={FIELD_RARITY_COLOR[reward.rarity]}
+                  />
+                </div>
+              )}
+              <div className="reward-name">
+                {reward.type !== 'weapon' && <RewardIcon reward={reward} />}
+                <h3>{reward.name}</h3>
+              </div>
+              {reward.description && (
+                <p
+                  className={
+                    reward.changes?.length ? 'quality-change' : undefined
+                  }
+                >
+                  {reward.description}
+                </p>
+              )}
+              {!!reward.changes?.length && (
+                <dl className="upgrade-comparison">
+                  {reward.changes.map((change) => (
+                    <div key={change.label}>
+                      <dt>{change.label}</dt>
+                      <dd>
+                        <span className="before-value">{change.before}</span>
+                        <span className="comparison-arrow" aria-hidden="true">
+                          →
+                        </span>
+                        <strong>{change.after}</strong>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </button>
+          );
+        })}
       </div>
-      {synergies.length > 0 && (
-        <div className="synergy-strip">
-          <Sparkles size={13} />
-          {synergies.join('  /  ')}
-        </div>
+      {notes.length > 0 && (
+        <p className="comparison-note">{notes.join(' · ')}</p>
       )}
+      <div className="reward-bottom">
+        <button
+          className="reroll-button"
+          onClick={onReroll}
+          disabled={game.rerolls === 0}
+          title={
+            game.rerolls === 0
+              ? 'No rerolls remaining'
+              : 'Rerolls carry across the run (R)'
+          }
+          aria-label={`Reroll choices. ${game.rerolls} remaining for this run.`}
+        >
+          <RotateCcw size={15} />
+          Reroll<span>{game.rerolls} left</span>
+          <kbd className="desktop-hint">R</kbd>
+        </button>
+      </div>
     </section>
   );
 }

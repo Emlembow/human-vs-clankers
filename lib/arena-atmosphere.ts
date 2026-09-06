@@ -75,7 +75,6 @@ export class ArenaAtmosphere {
       texture.mapping = THREE.EquirectangularReflectionMapping; this.textures.add(texture); this.environment = texture;
       scene.environment = texture; scene.environmentIntensity = .55;
     }, undefined, () => { /* Warm key and hemisphere lights are a complete fallback. */ });
-    this.addFloorMarkings();
     this.loadBarrels();
     for (let i = 0; i < 24; i++) { const sprite = this.sprite(0, true); sprite.visible = false; this.flashes.push({ sprite, life: 0, duration: 1, size: 1 }); this.group.add(sprite); }
     for (let i = 0; i < 18; i++) { const sprite = this.sprite(0, false); sprite.visible = false; this.smoke.push({ sprite, life: 0, duration: 1, size: 1, rotation: 0 }); this.group.add(sprite); }
@@ -95,20 +94,6 @@ export class ArenaAtmosphere {
   private load(url: string, apply: (texture: THREE.Texture) => void) {
     const texture = new THREE.TextureLoader().load(url, loaded => { if (this.disposed) { loaded.dispose(); return; } apply(loaded); }, undefined, () => { /* Geometry and untextured materials remain usable. */ });
     this.textures.add(texture);
-  }
-
-  private addFloorMarkings() {
-    // Stencilled paint is authored as a decal; the underlying photographed PBR floor stays visible.
-    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
-    const context = canvas.getContext('2d'); if (!context) return;
-    context.fillStyle = '#d6c79c'; context.textAlign = 'center'; context.font = '900 216px monospace'; context.fillText('07', 256, 266);
-    context.font = 'bold 31px monospace'; context.fillText('PROVING GROUND', 256, 323);
-    context.fillRect(100, 350, 312, 7);
-    context.globalCompositeOperation = 'destination-out';
-    for (let i = 0; i < 650; i++) { const x = (i * 127.31) % 512, y = (i * 43.17) % 512; context.globalAlpha = .3 + (i % 5) * .13; context.fillRect(x, y, 2 + i % 11, 1 + i % 3); }
-    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; this.textures.add(texture);
-    const decal = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(23, 23)), this.material(new THREE.MeshStandardMaterial({ map: texture, transparent: true, opacity: .27, roughness: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })));
-    decal.position.set(0, 0, -.25); decal.receiveShadow = true; this.group.add(decal);
   }
 
   private loadBarrels() {

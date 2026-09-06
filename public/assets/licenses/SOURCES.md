@@ -1,6 +1,19 @@
 # Man vs. Clankers — artwork sources
 
-Selected from the user's `/Users/mike/Documents/ChatGPT/Poly/POLY-ASSET-LIBRARY.md` source catalog. Downloaded 2026-09-06. Runtime assets are served locally with the game; no third-party asset URL is fetched by players. All downloaded artwork is CC0. The survivor and robot geometry are original procedural hard-surface models, with Poly Haven surface wear applied to their armor.
+Selected from the Poly asset library source catalog. Downloaded 2026-09-06. Runtime assets are served locally with the game; no third-party asset URL is fetched by players. The robot model is CC BY 3.0; Poly Haven and Kenney artwork is CC0. The survivor remains original procedural geometry. Downloaded robot geometry and survivor armor use Poly Haven surface wear.
+
+## Robot model attribution — OB3M9
+
+**“OB3M9” by Giuseppe Zemba**, obtained through [Poly Pizza](https://poly.pizza/m/5vuAnGYains), is licensed under [Creative Commons Attribution 3.0 Unported (CC BY 3.0)](https://creativecommons.org/licenses/by/3.0/).
+
+- Original model: `assets/robots/ob3m9-source.glb` (1,413,700 bytes, 18,756 triangles).
+- Runtime derivative: `assets/robots/ob3m9.glb` (636,204 bytes, 8,036 triangles).
+- Source GLB download: https://static.poly.pizza/b3aa5335-404e-4405-b3b5-321584d968cc.glb.br — HTTP content decoding yields the original GLB.
+- Changes made for **Man vs. Clankers**: offline mesh simplification while preserving the original rigid parts; conversion from Y-up / +Z-facing to Z-up / +X-facing; uniform height normalization; arms relaxed downward from the source T-pose; mesh parts grouped into a head, torso, two arms and two legs for rigid-joint walking animation; metallic grey/rust/ochre role coloring, weathered PBR surfaces and status lights. No original author endorsement is implied.
+- All three enemy types use this actual model geometry with distinct proportions, colors and walking cadence. The player and the temporary humanoid loading fallback are original procedural models.
+- The source is unrigged: the simple mechanical walk in the game is original rigid-part animation, not an imported animation clip.
+
+The **Credits** link inside the game's Controls disclosure points to this attribution page. The original source and derivative have independent SHA-256 entries in `manifest.json`.
 
 ## Poly Haven — photographed PBR surfaces, HDR lighting and model
 
@@ -27,4 +40,4 @@ The previous Metal Plate floor normal/ARM maps are no longer deployed. Its diffu
 - Files from `PNG (Transparent)/`: `circle_05.png`, `flare_01.png`, `smoke_01.png`
 - Use: warm impact sparks, restrained flash cores, grey explosion smoke and drifting yard dust. Unmodified 512-pixel transparent PNGs.
 
-Exact download URLs, archive entries, sizes and SHA-256 checksums for all runtime source files are in `manifest.json`. The floor's faded numerals and safety paint are procedural decals; humanoid, robot and architectural geometry are authored in the Three.js renderer. No generated AI images are used.
+Exact download URLs, archive entries, sizes and SHA-256 checksums for all runtime source files are in `manifest.json`. Safety paint, the armored player, loading fallback and architectural geometry are authored in the Three.js renderer. No generated AI images are used.

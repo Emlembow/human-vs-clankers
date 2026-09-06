@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { ROBOT_PARTS, clankerPartPitch, type ClankerModel, type RobotPart } from './clanker-model.ts';
 import type { EnemyKind } from './game-model';
 
 export const INDUSTRIAL_COLORS = { player: '#e8dec2', drifter: '#9caaa5', chaser: '#bf6753', spinner: '#c4a05c' };
@@ -18,9 +19,13 @@ export class IndustrialDrones {
   private templates = new Map<string, THREE.Group>();
   private geometries = new Set<THREE.BufferGeometry>();
   private allMaterials = new Set<THREE.Material>();
+  private robotModel: ClankerModel | null = null;
+  private robotSurface = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: .66, roughness: .62 });
+  private disposed = false;
+  revision = 0;
 
   constructor() {
-    for (const m of [this.steel, this.rubber, this.alloy, this.lamp, this.warning, this.darkGlass]) this.allMaterials.add(m);
+    for (const m of [this.steel, this.rubber, this.alloy, this.lamp, this.warning, this.darkGlass, this.robotSurface]) this.allMaterials.add(m);
     for (const [kind, color] of Object.entries({ ...INDUSTRIAL_COLORS, orbital: '#d7c694' })) {
       const material = new THREE.MeshStandardMaterial({ color, metalness: .48, roughness: .57 });
       this.armor.set(kind as UnitKind, material); this.allMaterials.add(material);
@@ -28,7 +33,7 @@ export class IndustrialDrones {
   }
 
   applyWear(normal: THREE.Texture, arm: THREE.Texture) {
-    for (const material of [this.steel, ...this.armor.values()]) {
+    for (const material of [this.steel, this.robotSurface, ...this.armor.values()]) {
       material.normalMap = normal; material.normalScale.set(.18, .18);
       material.roughnessMap = arm; material.aoMap = arm; material.aoMapIntensity = .48; material.needsUpdate = true;
     }
@@ -42,6 +47,7 @@ export class IndustrialDrones {
   }
 
   private build(kind: UnitKind, elite: boolean) {
+    if (kind !== 'player' && kind !== 'orbital') return this.buildClanker(kind, elite);
     const group = new THREE.Group(); group.name = `industrial-${kind}`;
     const batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
     const add = (geo: THREE.BufferGeometry, material: THREE.Material, x = 0, y = 0, z = 0, rotation?: THREE.Euler) => {
@@ -84,7 +90,7 @@ export class IndustrialDrones {
       cylinder(.1, .18, this.rubber, 1.6, -.08, 1.28, true);
       box(.21, .13, .27, this.rubber, .67, -.08, 1.04, .025);
       box(.12, .12, .11, this.darkGlass, .66, -.08, 1.5, .02);
-    } else if (kind === 'spinner' || kind === 'orbital') {
+    } else if (kind === 'orbital') {
       cylinder(.87, .48, armor, 0, 0, .55);
       cylinder(.63, .56, this.steel, 0, 0, .62);
       cylinder(.27, .68, this.alloy, 0, 0, .66);
@@ -98,24 +104,6 @@ export class IndustrialDrones {
         cylinder(.08, .2, this.alloy, Math.cos(angle) * .92, Math.sin(angle) * .92, .15);
       }
       box(.3, .15, .09, this.lamp, .5, 0, 1.03);
-    } else {
-      const crawler = kind === 'drifter';
-      box(1.72, 1.16, .45, this.steel, -.06, 0, .38);
-      box(1.48, 1.12, .42, armor, -.15, 0, .71, .14);
-      box(.82, .72, .33, armor, -.22, 0, 1.01, .11);
-      box(.59, .34, .16, this.darkGlass, .04, 0, 1.19);
-      for (const side of [-1, 1]) {
-        box(crawler ? 2.15 : 1.8, .39, .5, this.rubber, -.08, side * .78, .3, .15);
-        box(1.73, .4, .14, armor, -.08, side * .78, .61);
-        for (let i = 0; i < 6; i++) box(.17, .42, .06, this.steel, -.83 + i * .29, side * .78, .73, .02);
-        box(.18, .2, .16, this.lamp, .82, side * .52, .7);
-        box(.2, .15, .14, this.warning, -.94, side * .51, .57);
-      }
-      for (let i = 0; i < 4; i++) box(.08, .63, .08, this.rubber, -.75 + i * .14, 0, .965, .01);
-      cylinder(.17, .76, this.alloy, .55, 0, 1.0, true);
-      cylinder(.22, .28, this.rubber, .95, 0, 1.0, true);
-      box(.32, .42, .14, this.warning, -.22, 0, 1.24);
-      for (const x of [-.6, .42]) for (const y of [-.41, .41]) cylinder(.045, .035, this.alloy, x, y, .95);
     }
     if (elite) {
       for (const y of [-.5, .5]) box(.8, .12, .1, this.warning, -.16, y, 1.25);
@@ -140,9 +128,45 @@ export class IndustrialDrones {
     if (kind === 'orbital') group.scale.setScalar(.48);
     // A physical status strip; damage never rescales an arbitrary chassis part.
     const statusGeometry = new THREE.BoxGeometry(.65, .07, .04); this.geometries.add(statusGeometry);
-    const status = new THREE.Mesh(statusGeometry, this.lamp); status.name = 'status-light'; status.position.set(-.25, 0, kind === 'spinner' ? 1.08 : 1.36); group.add(status);
+    const status = new THREE.Mesh(statusGeometry, this.lamp); status.name = 'status-light'; status.position.set(-.25, 0, 1.36); group.add(status);
     if (kind === 'player') status.visible = false;
     return group;
+  }
+
+  installClanker(model: ClankerModel) {
+    if (this.disposed) { model.dispose(); return false; }
+    this.robotModel = model; for (const part of model.parts) this.geometries.add(part.geometry);
+    for (const key of this.templates.keys()) if (!key.startsWith('player:') && !key.startsWith('orbital:')) this.templates.delete(key);
+    this.revision++; return true;
+  }
+
+  private buildClanker(kind: EnemyKind, elite: boolean) {
+    const group = new THREE.Group(); group.name = `clanker-${kind}`;
+    group.userData.source = this.robotModel ? 'OB3M9 / Giuseppe Zemba / CC BY 3.0' : 'humanoid-loading-fallback';
+    const roleScale = kind === 'drifter' ? [1.2, 1.2, 1] : kind === 'chaser' ? [.92, .83, .98] : [1.08, 1.04, 1.12];
+    group.scale.set(roleScale[0], roleScale[1], roleScale[2]);
+    if (this.robotModel) {
+      for (const part of this.robotModel.parts) {
+        const mesh = new THREE.Mesh(part.geometry, this.robotSurface); mesh.name = part.name; mesh.position.copy(part.pivot);
+        mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
+      }
+    } else {
+      // A real bipedal silhouette remains visible while the downloaded model loads.
+      const positions: Record<RobotPart, [number, number, number]> = { head: [0, 0, 2.15], torso: [0, 0, 1.4], 'left-arm': [0, -.43, 1.95], 'right-arm': [0, .43, 1.95], 'left-leg': [0, -.22, .94], 'right-leg': [0, .22, .94] };
+      for (const name of ROBOT_PARTS) {
+        const limb = name.endsWith('arm') || name.endsWith('leg');
+        const geometry = name === 'head' ? new RoundedBoxGeometry(.43, .52, .45, 1, .06) : name === 'torso' ? new RoundedBoxGeometry(.46, .68, .75, 1, .07) : new RoundedBoxGeometry(.24, .24, .87, 1, .055);
+        if (limb) geometry.translate(name.endsWith('arm') ? .12 : .04, 0, -.38);
+        this.geometries.add(geometry); const mesh = new THREE.Mesh(geometry, this.armor.get(kind)); mesh.name = name; mesh.position.set(...positions[name]); mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
+      }
+    }
+    const statusGeometry = new THREE.BoxGeometry(elite ? .65 : .42, .07, .05); this.geometries.add(statusGeometry);
+    const status = new THREE.Mesh(statusGeometry, this.lamp); status.name = 'status-light'; status.position.set(.27, 0, elite ? 1.76 : 1.65); group.add(status);
+    return group;
+  }
+
+  animateClanker(group: THREE.Group, age: number, kind: EnemyKind) {
+    for (const part of group.children) part.rotation.y = clankerPartPitch(part.name, age, kind);
   }
 
   animateSurvivor(group: THREE.Group, time: number, speed: number) {
@@ -152,5 +176,5 @@ export class IndustrialDrones {
     if (right) right.rotation.y = -Math.sin(time * 18) * .48 * amount;
   }
 
-  dispose() { for (const geometry of this.geometries) geometry.dispose(); for (const material of this.allMaterials) material.dispose(); this.templates.clear(); }
+  dispose() { this.disposed = true; for (const geometry of this.geometries) geometry.dispose(); for (const material of this.allMaterials) material.dispose(); this.templates.clear(); }
 }

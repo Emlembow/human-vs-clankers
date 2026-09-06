@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CLANKER_MODEL_URL, prepareClankerModel, disposeClankerSource } from './clanker-model';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ArenaAtmosphere } from './arena-atmosphere';
 import { createProjectileMesh, createProjectileUnderlay } from './projectile-rendering';
@@ -71,7 +73,7 @@ export class GameEngine {
       material.map = texture; material.size = 4 * this.renderer.getPixelRatio(); material.needsUpdate = true;
     }, (normal, arm) => this.fleet.applyWear(normal, arm));
     this.scene.add(this.atmosphere.group);
-    for (let i = 0; i < 12; i++) { const obj = this.enemyShape((['drifter', 'chaser', 'spinner'] as EnemyKind[])[i % 3]); this.demo.push(obj); this.scene.add(obj); }
+    this.refreshDemoModels(); this.loadClankerArtwork();
     for (const side of ['left', 'right']) { const stick = document.createElement('div'); stick.className = `touch-stick ${side}`; stick.innerHTML = `<span></span><b>${side === 'left' ? 'MOVE' : 'AIM / FIRE'}</b>`; stick.setAttribute('aria-hidden', 'true'); this.sticks.push(stick); host.appendChild(stick); }
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(host); this.resize(); this.bindEvents();
     try { const best = Number(localStorage.getItem('geometry-conflict-best')); this.model.best = Number.isFinite(best) && best > 0 ? best : 0; this.muted = localStorage.getItem('geometry-conflict-muted') === 'true'; } catch { /* Device storage is optional. */ }
@@ -85,6 +87,20 @@ export class GameEngine {
   }
   private circle(radius: number, color: string, opacity: number) { return this.line(Array.from({ length: 64 }, (_, i) => [Math.cos(i / 64 * Math.PI * 2) * radius, Math.sin(i / 64 * Math.PI * 2) * radius]), color, opacity); }
   private enemyShape(kind: EnemyKind, elite = false) { return this.fleet.create(kind, elite); }
+  private refreshDemoModels() {
+    for (const model of this.demo) model.removeFromParent(); this.demo = [];
+    for (let i = 0; i < 12; i++) { const model = this.enemyShape((['drifter', 'chaser', 'spinner'] as EnemyKind[])[i % 3]); this.demo.push(model); this.scene.add(model); }
+  }
+  private loadClankerArtwork() {
+    new GLTFLoader().load(CLANKER_MODEL_URL, gltf => {
+      try {
+        if (this.disposed) return;
+        const model = prepareClankerModel(gltf.scene);
+        if (this.fleet.installClanker(model)) this.refreshDemoModels();
+      } catch { /* The already visible humanoid fallback keeps combat available. */ }
+      finally { disposeClankerSource(gltf.scene); }
+    }, undefined, () => { /* Missing artwork keeps the same bipedal fallback, never a tank. */ });
+  }
   private resize() {
     const { width, height } = this.host.getBoundingClientRect(); if (!width || !height) return;
     const bounds = frameIndustrialCamera(this.camera, width, height), worldWidth = bounds.width, worldHeight = bounds.height;
@@ -216,7 +232,7 @@ export class GameEngine {
     this.demo.forEach((o, i) => {
       o.visible = ready; const side = i % 2 === 0 ? -1 : 1;
       o.position.set(side * this.model.width * (.24 + (i % 3) * .09) + Math.sin(this.clock * .2 + i) * 2, Math.sin(i * 4.7) * 23 + Math.cos(this.clock * .18 + i) * 2, 0);
-      o.rotation.z = i + (this.reduceMotion ? 0 : this.clock * (.1 + i * .015)); o.scale.setScalar(.7 + (i % 3) * .17);
+      o.rotation.z = i + (this.reduceMotion ? 0 : this.clock * .08); this.fleet.animateClanker(o, this.reduceMotion ? 0 : this.clock, (['drifter', 'chaser', 'spinner'] as EnemyKind[])[i % 3]);
     });
     this.enemyRenderer.update(this.model.enemies);
     for (const e of this.model.enemies) {

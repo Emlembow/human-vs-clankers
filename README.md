@@ -28,10 +28,12 @@ The research and specific inspiration from **Hades, Enter the Gungeon, and Raven
 | Wave | Enemies | Spawn period | Burst size | Base chaser speed |
 | --- | ---: | ---: | ---: | ---: |
 | 1 | 36 | 24 seconds | 1 | 9.0 |
-| 2 | 80 | 25.1 seconds | 3 | 11.7 |
+| 2 | 74 | 25.1 seconds | 3 | 11.7 |
 | 3 | 134 | 26.2 seconds | 5 | 14.4 |
 | 5 | 272 | 28.4 seconds | 9 | 20.3 |
 | 10 | 792 | 33.9 seconds | 12 | 36.0 |
+
+The first balance adjustment raises all ten selectable weapons’ base damage by 20% (including Cinder Jet’s burn) and trims wave 2 from 80 enemies to 74. Weapon upgrade scaling and all other wave tuning stay the same. Future balance passes should remain incremental, guided by play feedback.
 
 The unmodified ship moves at 22 units per second. Elites appear from wave 3 with a gold outline, larger size, triple health, and a speed bonus. Enemy health, density, pursuit, and elite frequency rise quickly. A crowded arena pauses the spawn queue instead of dropping enemies. Spawn warning time and safe spawn distance remain consistent.
 

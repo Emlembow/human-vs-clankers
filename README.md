@@ -1,6 +1,6 @@
-# Geometry Conflict
+# Man vs. Clankers
 
-A Geometry Wars inspired roguelike arena shooter built with Three.js, React, and Vinext. Neon wireframes, an animated grid, bloom, particle effects, and synthesized weapon audio.
+A roguelike arena shooter built with Three.js, React, and Vinext. A human survivor faces humanoid industrial robots in a worn factory yard, with locally hosted Poly Pizza, Poly Haven, and Kenney artwork and synthesized weapon audio.
 
 ## Play
 
@@ -50,6 +50,8 @@ npx tsc --noEmit
 npm run build
 ```
 
+The production target is a single Cloudflare Worker on its `workers.dev` address. Run `npm run deploy:check` after building for a local deployment dry run, or `npm run deploy` to build and publish. No custom domain, database, storage service, or application secrets are configured. See [Cloudflare hosting](docs/cloudflare-hosting.md) for the exact configuration and deployment workflow.
+
 - `lib/roguelike.ts`: weapon definitions, relic catalog, rarity, and derived weapon profiles.
 - `lib/game-model.ts`: deterministic combat, rewards, shared rerolls, effects, and progression.
 - `lib/game-engine.ts`: Three.js rendering, input, transient effects, and audio.
@@ -62,6 +64,6 @@ Optional WebMCP tools expose `get_game_status`, `control_game`, `choose_wave_rew
 
 ## Arena materials and effects
 
-The Poly asset guide informed a dim Poly Haven metal-plate floor with diffuse, normal, and packed material maps. Kenney particle textures add soft sparks, impact flares, ship glow, and restrained haze. Lit perimeter posts frame the arena. The neon grid, enemy silhouettes, collision rules, and difficulty remain intact.
+Poly Haven provides the worn concrete floor, rusty steel textures, factory-yard lighting, and barrel props. The clankers use Giuseppe Zemba's OB3M9 model from Poly Pizza, with optimized meshes, larger silhouettes, role colors, and original walking animation. Kenney particle textures add sparks, impact flares, smoke, and restrained dust.
 
-Six locally hosted images total about 2.7 MB; materials load asynchronously with an untextured fallback. Effects reuse fixed pools, freeze with the game, honor reduced motion, and release GPU resources on teardown. Source URLs and licenses are recorded in `public/assets/licenses/SOURCES.md`.
+The artwork is hosted with the game. Materials load asynchronously with an untextured fallback. Effects reuse fixed pools, freeze with the game, honor reduced motion, and release GPU resources on teardown. Source URLs and licenses are recorded in `public/assets/licenses/SOURCES.md` and the game's collapsible Credits section.

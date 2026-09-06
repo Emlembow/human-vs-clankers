@@ -38,7 +38,7 @@ export function Credits({
       <summary>Credits</summary>
       <section
         className="credits-content"
-        aria-label="Resource credits and licenses"
+        aria-label="Creative Commons artwork credits"
         tabIndex={0}
       >
         {CREDIT_GROUPS.map((group) => (
@@ -91,36 +91,6 @@ export function Credits({
             </ul>
           </section>
         ))}
-        <div className="credits-records">
-          <a
-            href="/assets/licenses/SOURCES.md"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Source notes
-          </a>
-          <a
-            href="/assets/licenses/manifest.json"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Artwork file manifest
-          </a>
-          <a
-            href="/assets/licenses/font-manifest.json"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Font file manifest
-          </a>
-          <a
-            href="/assets/licenses/credits.json"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Complete credit index
-          </a>
-        </div>
       </section>
     </details>
   );

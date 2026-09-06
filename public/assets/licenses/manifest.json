@@ -241,6 +241,5 @@
       "role": "runtime"
     }
   ],
-  "credits": "assets/licenses/credits.json",
-  "font_manifest": "assets/licenses/font-manifest.json"
+  "credits": "assets/licenses/credits.json"
 }

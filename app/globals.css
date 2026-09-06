@@ -1131,3 +1131,157 @@ kbd {
     transition: none !important;
   }
 }
+
+/* Expanding the credits overlays the paused arena without changing its bounds. */
+.game-credits {
+  position: relative;
+  flex-shrink: 0;
+  border-top: 1px solid #444b38;
+  background: #1b2119;
+}
+.game-credits > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 35px;
+  padding: 8px 18px;
+  color: #c3cbb5;
+  font-size: 0.875rem;
+  list-style: none;
+  cursor: pointer;
+}
+.game-credits > summary::-webkit-details-marker {
+  display: none;
+}
+.game-credits > summary::after {
+  content: '+';
+  margin-left: auto;
+  color: #ddbf83;
+  font-size: 17px;
+  line-height: 1;
+}
+.game-credits[open] > summary::after {
+  content: '−';
+}
+.game-credits > summary:hover {
+  background: #303b27;
+  color: #f0dfbc;
+}
+.credits-content {
+  position: absolute;
+  z-index: 14;
+  inset-inline: 0;
+  bottom: 100%;
+  max-height: min(60vh, 450px);
+  max-height: min(60dvh, 450px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+  padding: 23px 25px;
+  background: #202b1dfc;
+  border-top: 1px solid #a3a17c;
+  box-shadow: 0 -8px 25px #0a130a66;
+}
+.credits-content:focus-visible {
+  outline: 2px solid #e7c080;
+  outline-offset: -3px;
+}
+.credit-group + .credit-group {
+  margin-top: 27px;
+}
+.credit-group > h2 {
+  margin: 0 0 15px;
+  color: #e8ddc1;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.credit-group > ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 19px 30px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.credit-group li {
+  min-width: 0;
+  border-top: 1px solid #546246;
+  padding-top: 13px;
+}
+.credit-group h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e4dcc5;
+}
+.credit-group p {
+  margin: 7px 0 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #bfcbb0;
+}
+.credit-group .credit-creator {
+  font-size: 0.875rem;
+  color: #d8d9c4;
+  margin-top: 0;
+}
+.credits-content a {
+  color: #e0c992;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.credits-content a:hover {
+  color: #fff0c2;
+}
+.credit-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 15px;
+  margin-top: 10px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.credits-records {
+  font-size: 0.875rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 13px 23px;
+  margin-top: 25px;
+  border-top: 1px solid #546246;
+  padding-top: 17px;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .game-credits > summary {
+    min-height: 39px;
+    padding: 9px 13px;
+  }
+  .credits-content {
+    padding: 19px 17px;
+  }
+  .credit-group > ul {
+    grid-template-columns: 1fr;
+    gap: 17px;
+  }
+  .credit-group p {
+    font-size: 1rem;
+  }
+  .credits-records {
+    font-size: 0.875rem;
+    gap: 13px 17px;
+  }
+}
+@media (max-height: 520px) {
+  .game-shell:fullscreen .game-credits > summary {
+    min-height: 31px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .game-shell:fullscreen .credits-content {
+    max-height: calc(100vh - 42px);
+    max-height: calc(100dvh - 42px);
+    padding-top: 17px;
+  }
+}

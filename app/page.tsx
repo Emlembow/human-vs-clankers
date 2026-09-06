@@ -18,8 +18,9 @@ import {
 import type { GameEngine } from '@/lib/game-engine';
 import { GameModel } from '@/lib/game-model';
 import { RewardScreen, FIELD_RARITY_COLOR } from '@/components/reward-screen';
+import { Credits } from '@/components/credits';
 
-function ControlHelp({ credits = false }: { credits?: boolean }) {
+function ControlHelp() {
   return (
     <div className="control-help-content">
       <dl className="desktop-controls">
@@ -64,11 +65,6 @@ function ControlHelp({ credits = false }: { credits?: boolean }) {
           </dd>
         </div>
       </dl>
-      {credits && (
-        <p style={{ margin: '12px 0 0' }}>
-          <a href="/assets/licenses/SOURCES.md" target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Credits</a>
-        </p>
-      )}
     </div>
   );
 }
@@ -156,7 +152,8 @@ export default function Home() {
   const active = game.status === 'playing';
   const hasRun = game.status !== 'ready';
   const pauseForDetails = (event: SyntheticEvent<HTMLDetailsElement>) => {
-    if (event.currentTarget.open && active) engine.current?.togglePause();
+    if (event.currentTarget.open && engine.current?.model.status === 'playing')
+      engine.current.togglePause();
   };
   return (
     <main className="arcade">
@@ -340,7 +337,7 @@ export default function Home() {
                   <summary aria-label="Controls" title="Controls">
                     <CircleHelp size={17} />
                   </summary>
-                  <ControlHelp credits />
+                  <ControlHelp />
                 </details>
               )}
               <button
@@ -378,6 +375,7 @@ export default function Home() {
               </button>
             </div>
           </div>
+          <Credits onToggle={pauseForDetails} />
           {notice && <output className="notice">{notice}</output>}
         </div>
         {game.relics.length > 0 && (

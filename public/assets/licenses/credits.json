@@ -1,0 +1,366 @@
+{
+  "project": "Man vs. Clankers",
+  "audited": "2026-09-06",
+  "groups": [
+    {
+      "id": "artwork",
+      "title": "Models, surfaces and effects",
+      "entries": [
+        {
+          "id": "ob3m9",
+          "title": "OB3M9",
+          "creator": "Giuseppe Zemba",
+          "use": "All three enemy types use this robot model. The original GLB is distributed as a provenance reference; the simplified GLB is loaded in the game.",
+          "license": {
+            "name": "CC BY 3.0",
+            "url": "https://creativecommons.org/licenses/by/3.0/"
+          },
+          "sourceUrl": "https://poly.pizza/m/5vuAnGYains",
+          "files": [
+            "assets/robots/ob3m9-source.glb",
+            "assets/robots/ob3m9.glb"
+          ],
+          "changes": "Simplified from 18,756 to 8,036 triangles; reoriented, reposed and given original rigid-joint walking animation. Silver/ivory armor, shared PBR wear, status lights, wider role-specific proportions and larger elites are game modifications. No creator endorsement is implied."
+        },
+        {
+          "id": "concrete",
+          "title": "Concrete Floor Worn 02",
+          "creator": "Dimitrios Savva",
+          "use": "Poly Haven diffuse, normal and packed surface maps for the concrete yard.",
+          "license": {
+            "name": "CC0 1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://polyhaven.com/a/concrete_floor_worn_02",
+          "files": [
+            "assets/industrial/concrete_floor_worn_02_diff_1k.jpg",
+            "assets/industrial/concrete_floor_worn_02_nor_gl_1k.jpg",
+            "assets/industrial/concrete_floor_worn_02_arm_1k.jpg"
+          ],
+          "changes": "Source images unchanged; tiled with adjusted tint and normal strength."
+        },
+        {
+          "id": "rusty-metal",
+          "title": "Rusty Metal 02",
+          "creator": "Rob Tuytel",
+          "use": "Poly Haven diffuse, normal and packed surface maps for perimeter steel; shared wear on survivor armor and robot hulls.",
+          "license": {
+            "name": "CC0 1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://polyhaven.com/a/rusty_metal_02",
+          "files": [
+            "assets/industrial/rusty_metal_02_diff_1k.jpg",
+            "assets/industrial/rusty_metal_02_nor_gl_1k.jpg",
+            "assets/industrial/rusty_metal_02_arm_1k.jpg"
+          ],
+          "changes": "Source images unchanged; material color, roughness and normal strength adjusted in the game."
+        },
+        {
+          "id": "factory-yard",
+          "title": "Factory Yard",
+          "creator": "Sergej Majboroda",
+          "use": "Poly Haven HDR environment for reflections and indirect lighting.",
+          "license": {
+            "name": "CC0 1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://polyhaven.com/a/factory_yard",
+          "files": [
+            "assets/industrial/factory_yard_1k.hdr"
+          ],
+          "changes": "Unmodified HDR file; lighting intensity adjusted. Not used as a background image."
+        },
+        {
+          "id": "barrel",
+          "title": "Barrel 03",
+          "creator": "Serhii Khromov",
+          "use": "Poly Haven glTF model, geometry buffer and diffuse/normal/packed surface maps at the yard edges.",
+          "license": {
+            "name": "CC0 1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://polyhaven.com/a/barrel_03",
+          "files": [
+            "assets/industrial/barrel/barrel_03_1k.gltf",
+            "assets/industrial/barrel/textures/barrel_03_diff_1k.jpg",
+            "assets/industrial/barrel/barrel_03.bin",
+            "assets/industrial/barrel/textures/barrel_03_nor_gl_1k.jpg",
+            "assets/industrial/barrel/textures/barrel_03_arm_1k.jpg"
+          ],
+          "changes": "Source files unchanged; centered, reoriented from Y-up to Z-up and scaled to 1.8 world units high."
+        },
+        {
+          "id": "metal-plate",
+          "title": "Metal Plate",
+          "creator": "Rob Tuytel",
+          "use": "Poly Haven diffuse photograph on the HUD and reward panels.",
+          "license": {
+            "name": "CC0 1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://polyhaven.com/a/metal_plate",
+          "files": [
+            "assets/polyhaven/metal_plate_diff_1k.jpg"
+          ],
+          "changes": "Source image unchanged; darkened and tiled through CSS."
+        },
+        {
+          "id": "particles",
+          "title": "Particle Pack 1.1",
+          "creator": "Kenney Vleugels / Kenney",
+          "use": "circle_05, flare_01 and smoke_01 provide sparks, flashes, explosion smoke and yard dust.",
+          "license": {
+            "name": "CC0 1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://kenney.nl/assets/particle-pack",
+          "files": [
+            "assets/kenney/circle_05.png",
+            "assets/kenney/flare_01.png",
+            "assets/kenney/smoke_01.png"
+          ],
+          "changes": "Unmodified PNGs; tinted, scaled and faded in the game. Pack filter-template credits: Indigo Ray, Craig Nisbet, Zoltan Erdokovy, Heliagon, ThreeDee, Killst4r and Tim2501.",
+          "links": [
+            {
+              "label": "Original pack credits",
+              "url": "/assets/licenses/kenney-particles.txt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fonts",
+      "title": "Typefaces",
+      "entries": [
+        {
+          "id": "geist",
+          "title": "Geist",
+          "creator": "The Geist Project Authors — Andrés Briganti, Mateo Zaragoza, Guillermo Rauch, Evil Rabbit, José Rago and Facundo Santana",
+          "use": "Interface text.",
+          "license": {
+            "name": "SIL Open Font License 1.1",
+            "url": "/assets/licenses/notices/geist-OFL.txt"
+          },
+          "sourceUrl": "https://vercel.com/font",
+          "files": [
+            "_next/static/_vinext_fonts/geist-8ac0455e797f/geist-ff2310f5.woff2",
+            "_next/static/_vinext_fonts/geist-8ac0455e797f/geist-875ccdd4.woff2",
+            "_next/static/_vinext_fonts/geist-8ac0455e797f/geist-52306abf.woff2",
+            "_next/static/_vinext_fonts/geist-8ac0455e797f/geist-001175b1.woff2",
+            "_next/static/_vinext_fonts/geist-8ac0455e797f/geist-98bbbccb.woff2"
+          ],
+          "changes": "Obtained through Google Fonts and self-hosted by Vinext. Font outlines are unmodified; Google Fonts supplies WOFF2 subsets.",
+          "links": [
+            {
+              "label": "Google Fonts source",
+              "url": "https://github.com/google/fonts/tree/main/ofl/geist"
+            }
+          ]
+        },
+        {
+          "id": "geistmono",
+          "title": "Geist Mono",
+          "creator": "The Geist Project Authors — Andrés Briganti, Mateo Zaragoza, Guillermo Rauch, Evil Rabbit, José Rago and Facundo Santana",
+          "use": "Numbers, labels and keyboard shortcuts.",
+          "license": {
+            "name": "SIL Open Font License 1.1",
+            "url": "/assets/licenses/notices/geistmono-OFL.txt"
+          },
+          "sourceUrl": "https://vercel.com/font",
+          "files": [
+            "_next/static/_vinext_fonts/geist-mono-00e989178794/geist-mono-f6b33328.woff2",
+            "_next/static/_vinext_fonts/geist-mono-00e989178794/geist-mono-44e03052.woff2",
+            "_next/static/_vinext_fonts/geist-mono-00e989178794/geist-mono-0638449e.woff2",
+            "_next/static/_vinext_fonts/geist-mono-00e989178794/geist-mono-971fb274.woff2",
+            "_next/static/_vinext_fonts/geist-mono-00e989178794/geist-mono-44745446.woff2",
+            "_next/static/_vinext_fonts/geist-mono-00e989178794/geist-mono-013b2f2f.woff2"
+          ],
+          "changes": "Obtained through Google Fonts and self-hosted by Vinext. Font outlines are unmodified; Google Fonts supplies WOFF2 subsets.",
+          "links": [
+            {
+              "label": "Google Fonts source",
+              "url": "https://github.com/google/fonts/tree/main/ofl/geistmono"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "icons",
+      "title": "Icons",
+      "entries": [
+        {
+          "id": "lucide",
+          "title": "Lucide icons 1.31.0",
+          "creator": "Eric Fennis; Lucide Icons and contributors",
+          "use": "Interface controls, reward symbols and resource icons.",
+          "license": {
+            "name": "ISC + retained Feather MIT notices",
+            "url": "/assets/licenses/notices/lucide-ISC-and-feather-MIT.txt"
+          },
+          "sourceUrl": "https://lucide.dev",
+          "changes": "Icons are rendered at game-specific sizes, stroke widths and colors."
+        },
+        {
+          "id": "feather",
+          "title": "Feather-derived icons",
+          "creator": "Cole Bemis",
+          "use": "Lucide includes Feather-derived icons used here, including Crosshair, Move and Minimize.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/lucide-ISC-and-feather-MIT.txt"
+          },
+          "sourceUrl": "https://feathericons.com"
+        }
+      ]
+    },
+    {
+      "id": "software",
+      "title": "Runtime and styles",
+      "entries": [
+        {
+          "id": "three",
+          "title": "Three.js 0.185.1",
+          "creator": "Three.js authors and contributors",
+          "use": "3D rendering, geometry, glTF/HDR loaders, materials, shadows and postprocessing. Its SimplifyModifier was used to prepare the robot derivative.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/three-MIT.txt"
+          },
+          "sourceUrl": "https://threejs.org"
+        },
+        {
+          "id": "react",
+          "title": "React 19.2.6",
+          "creator": "Meta Platforms, Inc. and affiliates; React contributors",
+          "use": "Interface rendering, React DOM, React Server Components and Scheduler.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/react-MIT.txt"
+          },
+          "sourceUrl": "https://react.dev"
+        },
+        {
+          "id": "vinext",
+          "title": "Vinext 1.0.0-beta.5",
+          "creator": "Cloudflare, Inc. and contributors",
+          "use": "App routing, server rendering and Next-compatible font handling. Next.js is not separately installed.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/vinext-MIT.txt"
+          },
+          "sourceUrl": "https://github.com/cloudflare/vinext"
+        },
+        {
+          "id": "tailwind",
+          "title": "Tailwind CSS 4.2.1",
+          "creator": "Tailwind Labs, Inc.",
+          "use": "CSS foundation, theme variables and styling utilities.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/tailwindcss-MIT.txt"
+          },
+          "sourceUrl": "https://tailwindcss.com"
+        },
+        {
+          "id": "tw-animate",
+          "title": "tw-animate-css 1.4.0",
+          "creator": "Luca Bosin / Wombosvideo",
+          "use": "Additional CSS utilities imported by the game stylesheet.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/tw-animate-css-MIT.txt"
+          },
+          "sourceUrl": "https://github.com/Wombosvideo/tw-animate-css"
+        },
+        {
+          "id": "shadcn",
+          "title": "shadcn/ui CSS 4.18.0",
+          "creator": "shadcn and contributors",
+          "use": "Imported tailwind.css utility and variant definitions.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/shadcn-MIT.txt"
+          },
+          "sourceUrl": "https://ui.shadcn.com"
+        }
+      ]
+    },
+    {
+      "id": "build",
+      "title": "Build and delivery",
+      "entries": [
+        {
+          "id": "vite",
+          "title": "Vite and React/RSC plugins",
+          "creator": "VoidZero Inc.; Yuxi (Evan) You and Vite contributors",
+          "use": "Build pipeline: Vite 8.0.13, @vitejs/plugin-react 6.0.2 and @vitejs/plugin-rsc 0.5.26.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/vite-and-bundled-notices.txt"
+          },
+          "sourceUrl": "https://vite.dev",
+          "links": [
+            {
+              "label": "React/RSC plugin license",
+              "url": "/assets/licenses/notices/vite-react-plugins-MIT.txt"
+            }
+          ]
+        },
+        {
+          "id": "cloudflare",
+          "title": "Cloudflare Workers tooling",
+          "creator": "Cloudflare, Inc. and contributors",
+          "use": "Deployment runtime integration via @cloudflare/vite-plugin 1.37.1 and Wrangler 4.92.0.",
+          "license": {
+            "name": "Vite plugin: MIT; Wrangler: MIT OR Apache-2.0",
+            "url": "/assets/licenses/notices/workers-sdk-MIT.txt"
+          },
+          "sourceUrl": "https://github.com/cloudflare/workers-sdk",
+          "links": [
+            {
+              "label": "Apache-2.0 alternative",
+              "url": "/assets/licenses/notices/workers-sdk-Apache-2.0.txt"
+            }
+          ]
+        },
+        {
+          "id": "sites",
+          "title": "OpenAI Sites integration",
+          "creator": "OpenAI",
+          "use": "Site packaging and hosting integration through @openai/sites-vite-plugin 0.2.0.",
+          "license": {
+            "name": "MIT",
+            "url": "/assets/licenses/notices/sites-plugin-MIT.txt"
+          },
+          "sourceUrl": "https://openai.com"
+        }
+      ]
+    },
+    {
+      "id": "original",
+      "title": "Created for this game",
+      "entries": [
+        {
+          "id": "project-work",
+          "title": "Game code, procedural artwork and sound",
+          "creator": "Man vs. Clankers project, developed with Codex",
+          "use": "Gameplay, UI layout, weapon diagrams, favicon, armored survivor, temporary robot loading fallback, orbiting drones, architectural geometry, safety paint, projectile shapes and rigid-part animations were created for this game. Sound effects are synthesized with Web Audio oscillators; there are no imported music or sound samples.",
+          "license": null,
+          "files": [
+            "favicon.svg"
+          ]
+        },
+        {
+          "id": "browser-fallbacks",
+          "title": "Browser-provided fallbacks",
+          "creator": "The player’s browser and operating system",
+          "use": "Arial, sans-serif and monospace are fallback font names only. No files for these system fonts are redistributed.",
+          "license": null
+        }
+      ]
+    }
+  ]
+}

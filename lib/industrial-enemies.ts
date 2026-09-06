@@ -5,7 +5,7 @@ import type { Enemy, EnemyKind } from './game-model';
 
 type Part = { mesh: THREE.InstancedMesh; transform: THREE.Matrix4; name: string };
 type Batch = { parts: Part[]; count: number };
-const roleColors = { drifter: '#b1b9b1', chaser: '#d3a198', spinner: '#cfb985' };
+const roleColors = { drifter: '#f4faef', chaser: '#ffd2b8', spinner: '#ffebb7' };
 
 /** Six humanoid parts share a bounded set of instance batches across the whole wave. */
 export class IndustrialEnemies {
@@ -32,7 +32,7 @@ export class IndustrialEnemies {
         mesh.name = `${kind}-${elite ? 'elite' : 'standard'}-${object.name}`;
         mesh.count = 0; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false;
         mesh.castShadow = object.castShadow; mesh.receiveShadow = object.receiveShadow;
-        const color = new THREE.Color(roleColors[kind]); if (elite) color.lerp(new THREE.Color('#d9c18c'), .3);
+        const color = new THREE.Color(roleColors[kind]); if (elite) color.lerp(new THREE.Color('#ffe1a8'), .3);
         if (object.name !== 'status-light') { for (let i = 0; i < this.capacity; i++) mesh.setColorAt(i, color); mesh.instanceColor!.needsUpdate = true; }
         this.group.add(mesh); parts.push({ mesh, transform: object.matrixWorld.clone(), name: object.name });
       });
@@ -45,12 +45,14 @@ export class IndustrialEnemies {
     if (this.revision !== this.fleet.revision) this.rebuild();
     for (const batch of this.batches.values()) batch.count = 0;
     for (const enemy of enemies) {
-      if (enemy.age <= .8 && Math.floor(enemy.age * 15) % 2 !== 0) continue;
       const batch = this.batches.get(`${enemy.kind}:${enemy.elite}`)!;
       if (batch.count >= this.capacity) continue;
       this.transform.position.set(enemy.x, enemy.y, 0);
       this.transform.rotation.set(0, 0, Math.atan2(enemy.vy, enemy.vx));
-      this.transform.scale.setScalar((enemy.age < .8 ? .3 + enemy.age / .8 * .7 : 1) * (enemy.elite ? 1.4 : 1) * (enemy.flash > 0 ? 1.1 : 1));
+      // Spawn grace remains in the simulation. Its artwork is full-size and
+      // continuously visible, rather than blinking or growing from a tiny dot.
+      const flashScale = enemy.flash > 0 ? 1.1 : 1;
+      this.transform.scale.set(flashScale, flashScale, 1);
       this.transform.updateMatrix();
       for (const part of batch.parts) {
         this.matrix.multiplyMatrices(this.transform.matrix, part.transform);

@@ -20,13 +20,13 @@ export class IndustrialDrones {
   private geometries = new Set<THREE.BufferGeometry>();
   private allMaterials = new Set<THREE.Material>();
   private robotModel: ClankerModel | null = null;
-  private robotSurface = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: .66, roughness: .62 });
+  private robotSurface = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: .42, roughness: .62 });
   private disposed = false;
   revision = 0;
 
   constructor() {
     for (const m of [this.steel, this.rubber, this.alloy, this.lamp, this.warning, this.darkGlass, this.robotSurface]) this.allMaterials.add(m);
-    for (const [kind, color] of Object.entries({ ...INDUSTRIAL_COLORS, orbital: '#d7c694' })) {
+    for (const [kind, color] of Object.entries({ ...INDUSTRIAL_COLORS, drifter: '#e0e7d5', chaser: '#efd0b7', spinner: '#ece0b9', orbital: '#d7c694' })) {
       const material = new THREE.MeshStandardMaterial({ color, metalness: .48, roughness: .57 });
       this.armor.set(kind as UnitKind, material); this.allMaterials.add(material);
     }
@@ -144,7 +144,10 @@ export class IndustrialDrones {
     const group = new THREE.Group(); group.name = `clanker-${kind}`;
     group.userData.source = this.robotModel ? 'OB3M9 / Giuseppe Zemba / CC BY 3.0' : 'humanoid-loading-fallback';
     const roleScale = kind === 'drifter' ? [1.2, 1.2, 1] : kind === 'chaser' ? [.92, .83, .98] : [1.08, 1.04, 1.12];
-    group.scale.set(roleScale[0], roleScale[1], roleScale[2]);
+    // Most of the survey-camera silhouette comes from the ground-plane axes.
+    // Enlarge those substantially while keeping the torso at tracer height.
+    // Elite presentation belongs here so demos and live instances share it.
+    group.scale.set(roleScale[0] * 1.8 * (elite ? 1.4 : 1), roleScale[1] * 1.8 * (elite ? 1.4 : 1), roleScale[2] * 1.15 * (elite ? 1.05 : 1));
     if (this.robotModel) {
       for (const part of this.robotModel.parts) {
         const mesh = new THREE.Mesh(part.geometry, this.robotSurface); mesh.name = part.name; mesh.position.copy(part.pivot);
@@ -162,6 +165,11 @@ export class IndustrialDrones {
     }
     const statusGeometry = new THREE.BoxGeometry(elite ? .65 : .42, .07, .05); this.geometries.add(statusGeometry);
     const status = new THREE.Mesh(statusGeometry, this.lamp); status.name = 'status-light'; status.position.set(.27, 0, elite ? 1.76 : 1.65); group.add(status);
+    // Shift the bind pose through part pivots, not root.position (the demo and
+    // instancer own root placement). Both the GLB and fallback stand on the yard.
+    const bounds = new THREE.Box3().setFromObject(group);
+    const groundOffset = (-.22 - bounds.min.z) / group.scale.z;
+    for (const part of group.children) part.position.z += groundOffset;
     return group;
   }
 

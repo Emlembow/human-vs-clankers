@@ -9,8 +9,10 @@ export const CLANKER_MODEL_URL = '/assets/robots/ob3m9.glb';
 export const CLANKER_HEIGHT = 2.75;
 
 const colors: Record<string, string> = {
-  mat5: '#b8a374', mat23: '#303936', mat16: '#a9b2ac', mat17: '#646f6b',
-  mat24: '#71847a', mat4: '#efd49b', mat3: '#a99a76',
+  // Broad pale armor stays readable against the worn floor; dark joints retain
+  // the imported model's anatomy without an outline or a glowing body material.
+  mat5: '#d3bb80', mat23: '#27332e', mat16: '#e0e4d7', mat17: '#a6b4ac',
+  mat24: '#b6c8bc', mat4: '#fff0bd', mat3: '#c7b58e',
 };
 
 /** Prepare the actual OB3M9 rigid model, preserving geometry rather than rebuilding it. */

@@ -123,7 +123,7 @@ test('unmount releases shadow targets and late assets cannot revive a disposed s
 });
 
 
-test('instanced enemy updates preserve health-only scaling, spawn warning, capacity and pooled ownership', () => {
+test('instanced enemy updates preserve health-only scaling, continuous spawn visibility, capacity and pooled ownership', () => {
   const fleet = new IndustrialDrones(), enemies = new IndustrialEnemies(fleet, 160);
   const instanceResources = collect(enemies.group), shared = new Set([...instanceResources.geometries, ...instanceResources.materials]);
   const sharedDisposals = new Set(), instanceDisposals = new Set();
@@ -139,7 +139,12 @@ test('instanced enemy updates preserve health-only scaling, spawn warning, capac
   assert.deepEqual(bodyAfter.elements, bodyBefore.elements, 'Taking damage must not deform the chassis');
   const scaleBefore = new THREE.Vector3().setFromMatrixScale(statusBefore), scaleAfter = new THREE.Vector3().setFromMatrixScale(statusAfter);
   assert.ok(Math.abs(scaleAfter.x / scaleBefore.x - .2) < 1e-6); assert.equal(scaleBefore.y, scaleAfter.y); assert.equal(scaleBefore.z, scaleAfter.z);
-  enemies.update([{ ...enemy, age: .1 }]); assert.ok(enemies.group.children.every(o => o.count === 0 && !o.visible), 'Spawn warning hidden frame must be hidden');
+  for (const age of [0, .1, .4, .79]) {
+    enemies.update([{ ...enemy, age }]);
+    assert.equal(body.count, 1); assert.equal(body.visible, true, 'Spawn grace must never hide the humanoid silhouette');
+    body.getMatrixAt(0, bodyAfter);
+    assert.deepEqual(bodyAfter.elements, bodyBefore.elements, 'Spawn grace must not shrink the head into a tiny marker');
+  }
   enemies.update(Array.from({ length: 161 }, (_, i) => ({ ...enemy, id: i + 1, x: i / 10 })));
   assert.ok(enemies.group.children.filter(o => o.visible).every(o => o.count === 160 && o.instanceMatrix.count === 160));
   assert.equal(collect(enemies.group).meshes.length, instanceResources.meshes.length, 'Enemy count must not allocate draw objects');

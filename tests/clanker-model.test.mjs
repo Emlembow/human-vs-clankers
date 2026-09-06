@@ -63,7 +63,6 @@ test('shipped Poly model becomes six shared humanoid parts without losing triang
   // Check the tallest elite at every spawn corner, facing four directions.
   for (const [w, h] of [[1280, 720], [900, 600], [390, 640]]) {
     const bounds = frameIndustrialCamera(camera, w, h), model = fleet.create('spinner', true);
-    model.scale.multiplyScalar(1.4);
     for (const x of [-bounds.width / 2 + 2, bounds.width / 2 - 2]) for (const y of [-28, 28]) for (const angle of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
       model.position.set(x, y, 0); model.rotation.z = angle; model.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(model);
@@ -88,8 +87,22 @@ test('live fallback replacement keeps distinct roles, frozen gait and a fixed 16
   assert.equal(new Set(colors).size, 3, 'All combat roles need distinct color coding');
   const scales = kinds.map(kind => fleet.create(kind).scale.toArray().join(',')); assert.equal(new Set(scales).size, 3);
   const before = new Map(pool.group.children.map(m => [m.name, matrix(m).elements.slice()]));
+  for (const kind of kinds) for (const elite of [false, true]) {
+    const prefix = `${kind}-${elite ? 'elite' : 'standard'}`;
+    pool.update([enemy(kind, elite)]);
+    const head = pool.group.children.find(m => m.name === `${prefix}-head`), fullHead = matrix(head).elements.slice();
+    const torso = pool.group.children.find(m => m.name === `${prefix}-torso`);
+    torso.geometry.computeBoundingBox();
+    const torsoBounds = torso.geometry.boundingBox.clone().applyMatrix4(matrix(torso));
+    assert.ok(torsoBounds.min.z < PROJECTILE_HEIGHT && torsoBounds.max.z > PROJECTILE_HEIGHT, 'Live standard and elite bodies must both intersect the unchanged tracer plane');
+    for (const age of [0, .1, .4, .79]) {
+      pool.update([enemy(kind, elite, { age })]);
+      assert.equal(head.count, 1); assert.equal(head.visible, true);
+      assert.deepEqual(matrix(head).elements, fullHead, 'Loaded humanoids must appear at their full silhouette size throughout spawn grace');
+    }
+  }
   pool.update(kinds.map(kind => enemy(kind)));
-  for (const mesh of pool.group.children) assert.deepEqual(matrix(mesh).elements, before.get(mesh.name), 'Frozen simulation age must freeze gait');
+  for (const mesh of pool.group.children.filter(m => m.visible)) assert.deepEqual(matrix(mesh).elements, before.get(mesh.name), 'Frozen simulation age must freeze gait');
   for (const kind of kinds) for (const [vx, vy, angle] of [[1, 0, 0], [0, 1, Math.PI / 2], [-1, 0, Math.PI], [0, -1, -Math.PI / 2]]) {
     pool.update([enemy(kind, false, { vx, vy })]);
     const head = pool.group.children.find(m => m.name === `${kind}-standard-head`), m = matrix(head);

@@ -175,3 +175,105 @@ test('reachable bonuses near the fire-rate cap do not show identical before and 
   assert.ok(reward.changes.every(change => change.before !== change.after));
   assert.deepEqual(reward.changes.map(change => change.label), ['Damage / hit']);
 });
+
+function generatedOffer(game, seed, key, rarity) {
+  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  // Complete the current wave as a fixture, but retain real eligibility, stored
+  // stats, stack counts, reward amounts and selection/application behavior.
+  game.status = 'reward'; game.rewards = []; game.rewardSeen.clear(); game.random = random;
+  game.generateRewards();
+  return game.rewards.find(reward => reward.key === key && (!rarity || reward.rarity === rarity));
+}
+
+function findGeneratedOffer(game, key, rarity) {
+  for (let seed = game.wave * 100000; seed < game.wave * 100000 + 10000; seed++) {
+    const reward = generatedOffer(game, seed, key, rarity);
+    if (reward) return reward;
+  }
+  assert.fail(`No ${rarity ?? ''} ${key} offer found at wave ${game.wave}`);
+}
+
+test('blast copy distinguishes stored bonus from capped Mortar radius and later weapon benefits', () => {
+  const game = new GameModel(); game.start();
+  const first = generatedOffer(game, 100001, 'weapon:mortar', 'common');
+  assert.ok(first); assert.equal(game.chooseReward(first.id), true);
+  const radii = [game.profiles[0].blast], amounts = [];
+  for (const [wave, seed, rarity] of [[2, 201117, 'legendary'], [3, 301443, 'legendary'], [4, 400082, 'common']]) {
+    assert.equal(game.wave, wave);
+    const reward = generatedOffer(game, seed, 'relic:volatile', rarity);
+    assert.ok(reward); amounts.push(readable(reward.amount));
+    assert.ok(reward.description.includes(`+${readable(reward.amount)} blast-radius bonus`));
+    assert.ok(reward.description.includes('Radius cap: 12 (15 with chain)'));
+    assert.ok(reward.description.includes('65% damage'));
+    assert.equal(game.chooseReward(reward.id), true); radii.push(game.profiles[0].blast);
+  }
+  assert.deepEqual(amounts, ['4.76', '4.76', '0.48']);
+  assert.deepEqual(radii.map(readable), ['5.5', '10.26', '12', '12']);
+  assert.equal(game.stats.blast, 10); assert.equal(game.owned.volatile, 3);
+  assert.equal(game.wave, 5);
+  const second = findGeneratedOffer(game, 'weapon:rail');
+  assert.equal(game.chooseReward(second.id), true);
+  assert.equal(game.profiles[0].blast, 12); assert.equal(game.profiles[1].blast, 10);
+  const chain = findGeneratedOffer(game, 'relic:conductor', 'common');
+  assert.equal(game.chooseReward(chain.id), true);
+  assert.equal(game.profiles[0].blast, 15); assert.equal(game.profiles[1].blast, 12.5);
+});
+
+test('chain and bounce cards describe stored bonuses when intrinsic effects reach their effective caps', () => {
+  for (const spec of [
+    { weapon: 'tesla', relic: 'conductor', stat: 'chain', rarities: ['legendary', 'legendary', 'common'], effective: [3, 5, 7, 7], stored: 5, bonusLabel: 'Chain-hop bonus:', cap: 'Cap: 7 hops' },
+    { weapon: 'ricochet', relic: 'refractor', stat: 'bounces', rarities: ['legendary', 'legendary', 'legendary'], effective: [3, 5, 7, 8], stored: 6, bonusLabel: 'Wall-bounce bonus:', cap: 'caps at 8 bounces' },
+  ]) {
+    const game = new GameModel(); game.start();
+    const weapon = findGeneratedOffer(game, `weapon:${spec.weapon}`, 'common');
+    assert.equal(game.chooseReward(weapon.id), true);
+    const effective = [game.profiles[0][spec.stat]];
+    for (const rarity of spec.rarities) {
+      const reward = findGeneratedOffer(game, `relic:${spec.relic}`, rarity);
+      assert.ok(reward.description.includes(`${spec.bonusLabel} +${reward.amount}`));
+      assert.ok(reward.description.includes(spec.cap));
+      assert.equal(game.chooseReward(reward.id), true); effective.push(game.profiles[0][spec.stat]);
+    }
+    assert.deepEqual(effective, spec.effective);
+    assert.equal(game.stats[spec.stat], spec.stored); assert.equal(game.owned[spec.relic], 3);
+    const second = findGeneratedOffer(game, 'weapon:rail', 'common');
+    assert.equal(game.chooseReward(second.id), true);
+    assert.equal(game.profiles[1][spec.stat], spec.stored);
+  }
+});
+
+test('conditional and capped resource rewards keep bonuses distinct from immediate received effects', () => {
+  const game = new GameModel(); game.start();
+  function grant(relicId, rarity) {
+    const def = RELICS.find(relic => relic.id === relicId), amount = relicValue(def, rarity);
+    game.status = 'reward'; game.rewards = [{ id: relicId, key: `relic:${relicId}`, type: 'relic', name: def.name, rarity, category: def.category, description: def.describe(amount), relicId, amount }];
+    const copy = game.rewards[0].description;
+    assert.equal(game.chooseReward(relicId), true); return copy;
+  }
+  game.shields = 6;
+  const shieldCopy = grant('aegis', 'legendary');
+  assert.equal(game.stats.shieldRegen, 2); assert.equal(game.shields, 6);
+  assert.ok(shieldCopy.includes('Shield-regen bonus: +2/wave')); assert.ok(shieldCopy.includes('6-shield cap'));
+  game.bombs = 9;
+  const reactorCopy = grant('reactor', 'legendary');
+  assert.equal(game.stats.bombRegen, .7);
+  game.finishWave();
+  grant('reactor', 'common');
+  game.finishWave();
+  assert.equal(game.bombs, 9); assert.ok(reactorCopy.includes('9-bomb cap'));
+  assert.ok(game.bombCredit > 0 && game.bombCredit < 1, 'stored fractional production remains unchanged');
+  const dormant = { ...emptyStats(), movingDamage: .25, shieldDamage: .3, berserk: .6, stationaryRate: .35 };
+  const weapon = { id: 'rail', level: 1, rarity: 'common' };
+  const unbuffed = weaponProfile(weapon, emptyStats());
+  const moving = weaponProfile(weapon, dormant, { moving: true, shields: 0, lives: 3 });
+  const shielded = weaponProfile(weapon, dormant, { moving: true, shields: 1, lives: 3 });
+  const lastLife = weaponProfile(weapon, dormant, { moving: true, shields: 0, lives: 1 });
+  assert.equal(moving.interval, unbuffed.interval);
+  assert.ok(shielded.damage > moving.damage); assert.ok(lastLife.damage > moving.damage);
+  for (const [relicId, condition] of [['kinetic', 'while moving'], ['fortress', 'while shielded'], ['berserk', 'last life'], ['anchor', 'while still']]) {
+    const def = RELICS.find(relic => relic.id === relicId);
+    assert.ok(def.describe(def.base).includes(condition));
+  }
+  assert.ok(RELICS.find(relic => relic.id === 'incendiary').describe(.65).includes('Burn bonus:'));
+  assert.ok(RELICS.find(relic => relic.id === 'fusillade').describe(.16).includes('up to the cap'));
+});

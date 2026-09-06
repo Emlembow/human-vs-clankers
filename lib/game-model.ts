@@ -111,7 +111,7 @@ export class GameModel {
       const amount = def.stat ? Math.min(relicValue(def, rarity), (CAPS[def.stat] ?? Infinity) - this.stats[def.stat]) : relicValue(def, rarity);
       const received = def.effect === 'lives' ? Math.min(amount, 9 - this.lives) : def.effect === 'shields' ? Math.min(amount, 6 - this.shields) : def.effect === 'bombs' ? Math.min(amount, 9 - this.bombs) : amount;
       const fireRateGain = Math.min(3 - this.stats.fireRate, amount / 2);
-      const description = def.id === 'fusillade' ? `All weapons: +${Number((amount * 100).toFixed(2))}% damage bonus${fireRateGain > 0 ? `; +${Number((fireRateGain * 100).toFixed(2))}% fire-rate bonus` : ''}.` : def.describe(received);
+      const description = def.id === 'fusillade' ? `All weapons: +${Number((amount * 100).toFixed(2))}% damage bonus${fireRateGain > 0 ? `; +${Number((fireRateGain * 100).toFixed(2))}% fire-rate bonus, up to the cap` : ''}.` : def.describe(received);
       return { id, key, type: 'relic', name: def.name, rarity, category: def.category, description, relicId: def.id, amount };
     });
   }

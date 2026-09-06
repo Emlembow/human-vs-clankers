@@ -13,9 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Geometry Conflict — Enter the grid',
+  title: 'Man vs. Clankers — Built to outlast',
   icons: { icon: '/favicon.svg' },
-  description: 'A neon roguelike arena shooter. Choose from ten weapons and 36 relics, build powerful combinations, and survive escalating waves.',
+  description:
+    'One human survivor against an army of industrial machines. Choose from ten weapons and 36 relics, build your arsenal, and survive escalating waves in an abandoned test yard.',
 };
 
 export default function RootLayout({

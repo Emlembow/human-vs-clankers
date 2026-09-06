@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { WebGLRenderLists } from 'three/src/renderers/webgl/WebGLRenderLists.js';
-import { createProjectileMesh } from '../lib/projectile-rendering.ts';
+import { createProjectileMesh, createProjectileUnderlay } from '../lib/projectile-rendering.ts';
 
 function drawOrder(objects) {
   const lists = new WebGLRenderLists(), list = lists.get(new THREE.Scene(), 0);
@@ -46,4 +46,19 @@ test('shots render after haze and flashes while retaining depth checks and capac
     assert.equal(shots.material.depthTest, true);
     assert.equal(shots.instanceMatrix.count, 900);
   } finally { clean([shots, haze, flash]); }
+});
+
+
+test('contrasting tracer casing renders above scenery and below the luminous core', () => {
+  const shots = createProjectileMesh(900), casing = createProjectileUnderlay(900);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(110, 60), new THREE.MeshStandardMaterial());
+  try {
+    for (const objects of [[shots, casing, floor], [floor, casing, shots], [casing, floor, shots]]) {
+      assert.deepEqual(drawOrder(objects), [floor, casing, shots]);
+    }
+    assert.equal(casing.material.blending, THREE.NormalBlending);
+    assert.equal(casing.material.depthTest, true); assert.equal(casing.material.depthWrite, false);
+    assert.equal(casing.instanceMatrix.count, shots.instanceMatrix.count);
+    assert.ok(casing.material.color.r < .05 && casing.material.color.g < .05 && casing.material.color.b < .05, 'Casing must retain contrast against bright flooring');
+  } finally { clean([shots, casing, floor]); }
 });

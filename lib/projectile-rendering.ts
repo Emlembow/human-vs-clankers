@@ -15,3 +15,10 @@ export function createProjectileMesh(capacity: number) {
   mesh.renderOrder = 10;
   return mesh;
 }
+
+/** A narrow charcoal casing keeps luminous ammunition readable over pale concrete. */
+export function createProjectileUnderlay(capacity: number) {
+  const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#18201a', transparent: true, opacity: .76, depthWrite: false, toneMapped: false }), capacity);
+  mesh.count = 0; mesh.frustumCulled = false; mesh.renderOrder = 9;
+  return mesh;
+}

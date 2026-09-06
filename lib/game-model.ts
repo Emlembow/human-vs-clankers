@@ -15,14 +15,16 @@ const clamp = (x: number, low: number, high: number) => Math.max(low, Math.min(h
 const normal = (x: number, y: number) => { const n = Math.hypot(x, y); return n > .0001 ? { x: x / n, y: y / n } : { x: 0, y: 0 }; };
 const CAPS: Partial<Record<Stat, number>> = { fireRate: 3, speed: .75, projectileSpeed: 1.2, size: 2, crit: .75, critDamage: 4, pierce: 12, bounces: 6, homing: 12, blast: 10, chain: 7, slow: .65, knockback: 6, grace: 3, shieldRegen: 6, orbitals: 6, execute: .35, dodge: .4 };
 
-// Wave 2 gives the first weapon pick a little room to breathe. From wave 3,
-// the original swarm curve and elite introduction remain in place.
+// Crowds escalate quickly, but movement pressure grows gradually. Even elite
+// chasers top out below the unmodified ship's speed so movement remains useful.
 export function getWaveTuning(wave: number) {
   const level = Math.max(0, wave - 1);
   const enemyCount = Math.min(1800, 36 + 39 * level + 5 * level * level - (wave === 2 ? 6 : 0));
   const burstSize = Math.min(12, 1 + 2 * level);
   const spawnDuration = Math.min(55, 24 + 1.1 * level);
-  return { enemyCount, burstSize, spawnDuration, spawnInterval: spawnDuration / (Math.ceil(enemyCount / burstSize) - 1), drifterChance: Math.max(.05, .4 - .09 * level), spinnerChance: wave === 1 ? 0 : Math.min(.48, .2 + .045 * (wave - 2)), speedBonus: Math.min(27, 2.6 * level + .055 * level * level), pursuitResponse: Math.min(10, 4 + .65 * level), interceptTime: Math.min(.55, Math.max(0, wave - 2) * .09), health: 1 + .2 * level + .025 * level * level, eliteChance: wave < 3 ? 0 : Math.min(.3, .08 + .018 * (wave - 3)) };
+  const speedBonus = Math.min(11, 1.35 * level);
+  const interceptTime = Math.min(.3, Math.max(0, wave - 4) * .06);
+  return { enemyCount, burstSize, spawnDuration, spawnInterval: spawnDuration / (Math.ceil(enemyCount / burstSize) - 1), drifterChance: Math.max(.05, .4 - .09 * level), spinnerChance: wave === 1 ? 0 : Math.min(.48, .2 + .045 * (wave - 2)), speedBonus, pursuitResponse: Math.min(10, 4 + .65 * level), interceptTime, health: 1 + .2 * level + .025 * level * level, eliteChance: wave < 3 ? 0 : Math.min(.3, .08 + .018 * (wave - 3)) };
 }
 
 export class GameModel {

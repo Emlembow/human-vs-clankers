@@ -23,19 +23,20 @@ Relics modify damage, fire rate, crits, movement, projectile size and speed, pie
 
 The research and specific inspiration from **Hades, Enter the Gungeon, and Ravenswatch** are documented with citations in [docs/roguelike-design.md](docs/roguelike-design.md).
 
-## Faster difficulty curve
+## Difficulty curve
 
 | Wave | Enemies | Spawn period | Burst size | Base chaser speed |
 | --- | ---: | ---: | ---: | ---: |
 | 1 | 36 | 24 seconds | 1 | 9.0 |
-| 2 | 74 | 25.1 seconds | 3 | 11.7 |
-| 3 | 134 | 26.2 seconds | 5 | 14.4 |
-| 5 | 272 | 28.4 seconds | 9 | 20.3 |
-| 10 | 792 | 33.9 seconds | 12 | 36.0 |
+| 2 | 74 | 25.1 seconds | 3 | 10.4 |
+| 3 | 134 | 26.2 seconds | 5 | 11.7 |
+| 4 | 198 | 27.3 seconds | 7 | 13.1 |
+| 5 | 272 | 28.4 seconds | 9 | 14.4 |
+| 10 | 792 | 33.9 seconds | 12 | 20.0 |
 
-The first balance adjustment raises all ten selectable weapons’ base damage by 20% (including Cinder Jet’s burn) and trims wave 2 from 80 enemies to 74. Weapon upgrade scaling and all other wave tuning stay the same. Future balance passes should remain incremental, guided by play feedback.
+The first balance adjustment raises all ten selectable weapons’ base damage by 20% (including Cinder Jet’s burn) and trims wave 2 from 80 enemies to 74. Weapon upgrade scaling stays the same. Future balance passes should remain incremental, guided by play feedback.
 
-The unmodified ship moves at 22 units per second. Elites appear from wave 3 with a gold outline, larger size, triple health, and a speed bonus. Enemy health, density, pursuit, and elite frequency rise quickly. A crowded arena pauses the spawn queue instead of dropping enemies. Spawn warning time and safe spawn distance remain consistent.
+The unmodified ship moves at 22 units per second. Elites appear from wave 3 with a gold outline, larger size, triple health, and a speed bonus. Chaser speed now rises by 1.35 units per wave, capped at 20 (21.6 for elites), below the unmodified ship’s speed of 22. Predictive pursuit begins at wave 5 and grows to a maximum 0.3-second lead. Enemy health, density, and elite frequency continue to escalate. A crowded arena pauses the spawn queue instead of dropping enemies. Spawn warning time and safe spawn distance remain consistent.
 
 ## Development and validation
 

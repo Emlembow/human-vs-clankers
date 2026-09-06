@@ -55,11 +55,12 @@ test('the first 20 waves last longer even with perfect shooting, with growing mu
   assert.ok(records.get(20).largestBurst >= 8);
 });
 
-test('later waves have increasingly faster hunters and a harder enemy mix', () => {
+test('hunter speed grows within an escapable range while the enemy mix gets harder', () => {
   const levels = [1, 5, 10, 20].map(getWaveTuning);
-  assert.ok(8 + levels[2].speedBonus > 15, 'Wave 10 hunters need to close distance much faster.');
-  assert.ok(8 + levels[3].speedBonus > 22, 'Wave 20 hunters should outrun the ship on a straight line.');
-  assert.ok(9 + levels[1].speedBonus >= 20, 'Wave 5 hunters must nearly match base ship speed.');
+  assert.ok(9 + levels[2].speedBonus >= 18, 'Later hunters still need to pressure the player.');
+  for (const wave of [3, 4, 5]) assert.ok((9 + getWaveTuning(wave).speedBonus) * 1.08 < 22 * .75, 'Early elites must leave room to maneuver.');
+  for (let wave = 1; wave <= 100; wave++) assert.ok((9 + getWaveTuning(wave).speedBonus) * 1.08 < 22, 'Even elite hunters must stay below base ship speed.');
+  assert.equal(getWaveTuning(4).interceptTime, 0, 'Predictive pursuit must wait until wave 5.');
   assert.ok(getWaveTuning(3).eliteChance > 0);
   assert.ok(getWaveTuning(3).enemyCount >= 130);
   assert.ok(levels[3].health > levels[2].health * 2);

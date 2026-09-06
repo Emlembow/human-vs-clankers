@@ -31,10 +31,14 @@ Effects compose across weapons: a homing shotgun, freezing chain lightning, burn
 
 ## Difficulty
 
-The revised assault begins with 36 enemies; wave two has 74, wave three 134, and wave five 272. Bursts grow from one enemy to three, five, and nine respectively. Elite enemies arrive on wave three with larger silhouettes and three times normal health. Speed, health, interception, and elite frequency increase quickly to challenge upgraded builds. Spawn warning and safe spawn distance remain consistent.
+The revised assault begins with 36 enemies; wave two has 74, wave three 134, and wave five 272. Bursts grow from one enemy to three, five, and nine respectively. Elite enemies arrive on wave three with larger silhouettes and three times normal health. Health, density, and elite frequency challenge upgraded builds while movement pressure rises more gradually. Spawn warning and safe spawn distance remain consistent.
 
 The live enemy cap remains 160 and projectile cap is 900. Pending enemies are retained when the arena is crowded. Effects avoid recursive proc chains, damage is bounded by each projectile's hit history, and expired effects are cleaned up.
 
 ### First incremental balance pass
 
 Player feedback found the jump into wave two too punishing. All ten draft weapons now deal 20% more base damage, including Cinder Jet’s burn; the Needle starter is unchanged. A common level-one Pulse Repeater now kills a normal wave-two chaser in one hit instead of two. Wave two has six fewer enemies (74 instead of 80) spread over the same assault duration. Other enemy tuning and weapon level/rarity scaling are unchanged. Continue with small adjustments based on play feedback rather than replacing the difficulty curve.
+
+### Enemy movement balance pass
+
+Player feedback found waves 3–4 too difficult to evade. Enemy speed now gains 1.35 units per wave and caps at +11, replacing the accelerating +2.6 per wave plus quadratic term. Normal chasers move at 11.7 on wave 3 and 13.05 on wave 4, down from 14.42 and 17.295. The maximum is 20 for normal chasers and 21.6 for elites, below the base ship speed of 22. Predictive interception starts at wave 5 instead of 3, increases by 0.06 seconds per wave, and caps at 0.3 seconds. Enemy counts, health, spawn duration, warnings, and weapon damage are unchanged in this pass.

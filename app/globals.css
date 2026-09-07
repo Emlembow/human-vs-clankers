@@ -579,16 +579,16 @@ kbd {
   font-size: 10px;
 }
 .reward-visual {
-  height: 87px;
+  height: 128px;
   display: grid;
   place-items: center;
   color: var(--rarity);
-  margin: 5px 0 4px;
+  margin: 12px 0 14px;
 }
 .weapon-diagram {
   width: 100%;
-  max-width: 248px;
-  height: 87px;
+  max-width: 300px;
+  height: 128px;
 }
 .reward-name {
   display: flex;
@@ -985,11 +985,11 @@ kbd {
     font-size: 14px;
   }
   .reward-visual {
-    height: 61px;
-    margin: 0 0 3px;
+    height: 112px;
+    margin: 10px 0 12px;
   }
   .weapon-diagram {
-    height: 68px;
+    height: 112px;
   }
   .reward-name {
     margin: 16px 0 12px;

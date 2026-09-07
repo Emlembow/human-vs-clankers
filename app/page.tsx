@@ -88,6 +88,7 @@ export default function Home() {
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
+  const [autoplay, setAutoplay] = useState(false);
   useEffect(() => {
     let disposed = false;
     let cleanupTools: (() => void) | undefined;
@@ -100,6 +101,7 @@ export default function Home() {
             setGame,
             () => {},
             setError,
+            setAutoplay,
           );
           setMuted(engine.current.muted);
           setReady(true);
@@ -332,6 +334,11 @@ export default function Home() {
               <div />
             )}
             <div className="game-tools">
+              {autoplay && (
+                <button className="autoplay-control" onClick={() => engine.current?.setAutoplay(false)} aria-label="Turn off autoplay" title="Turn off autoplay">
+                  <span>Autoplay</span><span aria-hidden="true">×</span>
+                </button>
+              )}
               {hasRun && !error && (
                 <details className="controls-help" onToggle={pauseForDetails}>
                   <summary aria-label="Controls" title="Controls">

@@ -1285,3 +1285,5 @@ kbd {
     padding-top: 17px;
   }
 }
+
+.game-tools .autoplay-control { width: auto; gap: 8px; padding: 0 9px; color: #a4ffcc; font-size: 11px; }

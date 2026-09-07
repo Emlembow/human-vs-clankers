@@ -6,7 +6,7 @@ export type Enemy = Vec & { id: number; kind: EnemyKind; vx: number; vy: number;
 export type Bullet = Vec & { id: number; vx: number; vy: number; age: number; damage?: number; radius?: number; lifetime?: number; color?: string; pierce?: number; bounces?: number; homing?: number; blast?: number; chain?: number; burn?: number; slow?: number; knockback?: number; rebound?: number; execute?: number; hits?: Set<number>; bounceCount?: number; critical?: boolean; style?: string };
 export type GameEvent = { type: 'shot' | 'kill' | 'hit' | 'bomb' | 'wave' | 'start' | 'reward' | 'upgrade' | 'impact' | 'arc' | 'blast' | 'shield'; x: number; y: number; tx?: number; ty?: number; radius?: number; color?: string; kind?: EnemyKind; weaponId?: WeaponId };
 export type GameSnapshot = { status: Status; score: number; best: number; lives: number; bombs: number; wave: number; multiplier: number; kills: number; time: number; waveBanner: boolean; shields: number; rerolls: number; weapons: WeaponProfile[]; rewards: Reward[]; relics: OwnedRelic[]; waveProgress: number };
-export type Input = { move: Vec; aim: Vec; shooting: boolean };
+export type Input = { move: Vec; aim: Vec; shooting: boolean; weaponAim?: Partial<Record<WeaponId, Vec>> };
 export const COLORS = { drifter: '#30d9ff', chaser: '#ff4f96', spinner: '#ffb456', player: '#a4ffcc' };
 export const POINTS = { drifter: 100, chaser: 200, spinner: 300 };
 export const MAX_ACTIVE_ENEMIES = 160;
@@ -192,11 +192,12 @@ export class GameModel {
     this.events.push({ type: 'bomb', x: this.player.x, y: this.player.y });
     for (const e of this.enemies.slice()) this.destroyEnemy(e, true); return true;
   }
-  private shoot(profile: WeaponProfile) {
+  private shoot(profile: WeaponProfile, aim?: Vec) {
+    const angle = aim && Number.isFinite(aim.x) && Number.isFinite(aim.y) && Math.hypot(aim.x, aim.y) > .1 ? Math.atan2(aim.y, aim.x) : this.player.angle;
     const count = profile.pellets;
     for (let i = 0; i < count && this.bullets.length < MAX_BULLETS; i++) {
       const offset = profile.id === 'nova' ? i / count * Math.PI * 2 : count === 1 ? 0 : (i / (count - 1) - .5) * profile.spread;
-      const a = this.player.angle + offset, critical = this.random() < profile.crit;
+      const a = angle + offset, critical = this.random() < profile.crit;
       this.bullets.push({ id: ++this.id, x: this.player.x + Math.cos(a) * 1.5, y: this.player.y + Math.sin(a) * 1.5, vx: Math.cos(a) * profile.speed, vy: Math.sin(a) * profile.speed, age: 0, damage: profile.damage * (critical ? profile.critDamage : 1), radius: profile.radius, lifetime: profile.lifetime, color: critical ? '#ffffff' : profile.color, pierce: (profile.pierce ?? 0) + (critical && profile.synergies.includes('Deadeye') ? 2 : 0), bounces: profile.bounces, homing: profile.homing, blast: profile.blast, chain: profile.chain, burn: profile.burn, slow: profile.slow, knockback: profile.knockback, rebound: profile.rebound, execute: profile.execute, hits: new Set(), bounceCount: 0, critical, style: profile.id });
     }
     this.events.push({ type: 'shot', x: this.player.x, y: this.player.y, weaponId: profile.id });
@@ -212,7 +213,7 @@ export class GameModel {
     const aim = normal(input.aim.x, input.aim.y); if (Math.hypot(aim.x, aim.y) > .1) this.player.angle = Math.atan2(aim.y, aim.x);
     for (const profile of this.profiles) {
       let clock = (this.shotClocks.get(profile.id) ?? 0) - dt;
-      if (input.shooting && clock <= 0) { clock = Math.max(clock, -dt) + profile.interval; this.shoot(profile); }
+      if (input.shooting && clock <= 0) { clock = Math.max(clock, -dt) + profile.interval; this.shoot(profile, input.weaponAim?.[profile.id]); }
       this.shotClocks.set(profile.id, clock);
     }
     if (this.enemies.length < MAX_ACTIVE_ENEMIES) this.spawnClock -= dt;

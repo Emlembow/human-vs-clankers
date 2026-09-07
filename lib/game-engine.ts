@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AutoplayController, KonamiSequence } from './autoplay';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -17,6 +18,11 @@ type TouchStick = { id: number; x: number; y: number; dx: number; dy: number };
 
 export class GameEngine {
   model = new GameModel();
+  private autopilot = new AutoplayController();
+  private konami = new KonamiSequence();
+  private foreground = true;
+  private onAutoplay: (enabled: boolean) => void;
+  get autoplay() { return this.autopilot.enabled; }
   private host: HTMLElement; private renderer: THREE.WebGLRenderer; private scene = new THREE.Scene();
   private camera = new THREE.OrthographicCamera(-55, 55, 30, -30, .1, 180);
   private composer: EffectComposer; private bloom: UnrealBloomPass; private observer: ResizeObserver;
@@ -38,8 +44,8 @@ export class GameEngine {
   private onSnapshot: (s: GameSnapshot) => void; private onFps: (n: number) => void;
   private fpsTime = 0; private fpsFrames = 0; private disposed = false; private savedBest = -1;
 
-  constructor(host: HTMLElement, onSnapshot: (s: GameSnapshot) => void, onFps: (n: number) => void, onError: (message: string) => void) {
-    this.host = host; this.onSnapshot = onSnapshot; this.onFps = onFps;
+  constructor(host: HTMLElement, onSnapshot: (s: GameSnapshot) => void, onFps: (n: number) => void, onError: (message: string) => void, onAutoplay: (enabled: boolean) => void = () => {}) {
+    this.host = host; this.onSnapshot = onSnapshot; this.onFps = onFps; this.onAutoplay = onAutoplay;
     this.reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x242924); this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.65));
@@ -112,6 +118,10 @@ export class GameEngine {
   private bindEvents() {
     const opts = { signal: this.listeners.signal }, canvas = this.renderer.domElement;
     window.addEventListener('keydown', e => {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const editing = !!target?.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]');
+      if (this.konami.push(e, performance.now(), editing)) { e.preventDefault(); this.setAutoplay(!this.autoplay); return; }
+      if (editing) return;
       if ((e.target as HTMLElement)?.closest('button,a,input,select,textarea') && (e.code === 'Enter' || e.code === 'Space')) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) && this.model.status === 'playing') e.preventDefault();
       this.keys.add(e.code);
@@ -126,8 +136,9 @@ export class GameEngine {
       else if (e.code === 'Space') this.bomb();
     }, opts);
     window.addEventListener('keyup', e => this.keys.delete(e.code), opts);
-    window.addEventListener('blur', () => { this.resetInputs(); if (this.model.status === 'playing') { this.model.pause(); this.notify(); } }, opts);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.resetInputs(); this.model.pause(); this.notify(); } }, opts);
+    window.addEventListener('focus', () => { this.foreground = true; }, opts);
+    window.addEventListener('blur', () => { this.foreground = false; this.konami.reset(); this.autopilot.reset(); this.resetInputs(); if (this.model.status === 'playing') { this.model.pause(); this.notify(); } }, opts);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.konami.reset(); this.autopilot.reset(); this.resetInputs(); this.model.pause(); this.notify(); } }, opts);
     canvas.addEventListener('contextmenu', e => e.preventDefault(), opts);
     canvas.addEventListener('pointerdown', e => {
       if (this.model.status !== 'playing') return;
@@ -157,8 +168,9 @@ export class GameEngine {
     const r = this.renderer.domElement.getBoundingClientRect(); this.pointerKnown = true;
     this.pointer = pointerToArena(this.camera, (e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2);
   }
-  start() { this.resetInputs(); this.model.start(); this.particles = []; this.unlockAudio(); this.notify(); }
-  togglePause() { this.resetInputs(); if (this.model.status === 'playing') this.model.pause(); else if (this.model.status === 'paused') { this.model.resume(); this.unlockAudio(); } this.notify(); }
+  setAutoplay(enabled: boolean) { this.resetInputs(); this.konami.reset(); this.autopilot.setEnabled(enabled); this.onAutoplay(enabled); if (enabled && (this.model.status === 'ready' || this.model.status === 'over')) this.start(); else this.notify(); }
+  start() { this.autopilot.reset(); this.resetInputs(); this.model.start(); this.particles = []; this.unlockAudio(); this.notify(); }
+  togglePause() { this.autopilot.reset(); this.resetInputs(); if (this.model.status === 'playing') this.model.pause(); else if (this.model.status === 'paused') { this.model.resume(); this.unlockAudio(); } this.notify(); }
   bomb() { this.model.bomb(); this.notify(); }
   chooseReward(id: string) { const chosen = this.model.chooseReward(id); if (chosen) { this.resetInputs(); this.unlockAudio(); this.notify(); } return chosen; }
   rerollRewards() { const rolled = this.model.rerollRewards(); if (rolled) this.notify(); return rolled; }
@@ -202,7 +214,11 @@ export class GameEngine {
     const kx = down('KeyL') - down('KeyJ'), ky = down('KeyI') - down('KeyK');
     const aim = this.rightStick ? { x: this.rightStick.dx, y: this.rightStick.dy } : kx || ky ? { x: kx, y: ky } : this.pointerKnown ? { x: this.pointer.x - this.model.player.x, y: this.pointer.y - this.model.player.y } : { x: 0, y: 1 };
     const previousStatus = this.model.status;
-    this.model.step(dt, { move: this.leftStick ? { x: this.leftStick.dx, y: this.leftStick.dy } : { x: mx, y: my }, aim, shooting: this.mouseDown || !!(kx || ky) || !!(this.rightStick && Math.hypot(this.rightStick.dx, this.rightStick.dy) > .15) });
+    const automated = this.autopilot.update(this.model, dt, this.foreground && !document.hidden);
+    if (automated.restart) this.start();
+    if (automated.rewardId) this.chooseReward(automated.rewardId);
+    if (automated.bomb) this.bomb();
+    this.model.step(dt, this.autoplay ? automated.input : { move: this.leftStick ? { x: this.leftStick.dx, y: this.leftStick.dy } : { x: mx, y: my }, aim, shooting: this.mouseDown || !!(kx || ky) || !!(this.rightStick && Math.hypot(this.rightStick.dx, this.rightStick.dy) > .15) });
     if (previousStatus !== this.model.status) { this.resetInputs(); this.notify(); }
     for (const ev of this.model.events) {
       this.sound(ev.type, ev.weaponId);
@@ -270,6 +286,7 @@ export class GameEngine {
     this.raf = requestAnimationFrame(this.frame);
   };
   dispose() {
+    this.autopilot.setEnabled(false); this.konami.reset(); this.resetInputs();
     this.disposed = true; cancelAnimationFrame(this.raf); this.listeners.abort(); this.observer.disconnect();
     this.atmosphere.dispose(); this.enemyRenderer.dispose(); this.fleet.dispose();
     for (const g of this.geometries) g.dispose(); for (const m of this.materials) m.dispose();

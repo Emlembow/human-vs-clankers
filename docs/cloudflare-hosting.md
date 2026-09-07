@@ -4,7 +4,7 @@ Man vs. Clankers runs natively on Cloudflare Pages. The project name is `man-vs-
 
 ## Configuration and build
 
-`wrangler.jsonc` is the Pages configuration. It selects the existing account, `dist/pages` as the output directory, and the tested `2026-05-22` compatibility date with `nodejs_compat`. Pages provides the `ASSETS` binding automatically. No custom domains, DNS changes, databases, external storage, service bindings, or application secrets are needed.
+`wrangler.jsonc` is the Pages configuration. It selects the project, `dist/pages` as the output directory, and the tested `2026-05-22` compatibility date with `nodejs_compat`. Pages provides the `ASSETS` binding automatically. Pages does not support `account_id` in its Wrangler configuration; the deployment account is selected through `CLOUDFLARE_ACCOUNT_ID` below. No custom domains, DNS changes, databases, external storage, service bindings, or application secrets are needed.
 
 `vite.config.ts` combines Vinext with the Cloudflare Vite plugin, using `wrangler.worker.jsonc` to compile the original `vinext/server/fetch-handler` and its RSC/SSR modules. This original Worker configuration is retained as the build input and optional fallback deployment target. The compatibility date matches the pinned local workerd runtime; update it together with Wrangler/workerd and repeat local runtime checks.
 
@@ -45,7 +45,13 @@ After a binding change, run `npm run types:worker` to regenerate `worker-configu
 
 ## Deployment
 
-Authenticate Wrangler to the account configured in `wrangler.jsonc`. Create the Pages project once, if it does not already exist:
+Authenticate Wrangler, then select the existing deployment account in the shell or CI environment. The account ID is a non-secret identifier; credentials remain in Wrangler's authentication state or CI secret storage:
+
+```sh
+export CLOUDFLARE_ACCOUNT_ID=15c3d4532d4120bfb4283f59967f7123
+```
+
+Create the Pages project once, if it does not already exist:
 
 ```sh
 npx wrangler pages project create man-vs-clankers --production-branch main

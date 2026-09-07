@@ -1,7 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "man-vs-clankers",
-  "account_id": "15c3d4532d4120bfb4283f59967f7123",
   "pages_build_output_dir": "./dist/pages",
   "compatibility_date": "2026-05-22",
   "compatibility_flags": [

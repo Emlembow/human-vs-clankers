@@ -50,7 +50,7 @@ npx tsc --noEmit
 npm run build
 ```
 
-The production target is a single Cloudflare Worker on its `workers.dev` address. Run `npm run deploy:check` after building for a local deployment dry run, or `npm run deploy` to build and publish. No custom domain, database, storage service, or application secrets are configured. See [Cloudflare hosting](docs/cloudflare-hosting.md) for the exact configuration and deployment workflow.
+The production target is Cloudflare Pages at the game-related `man-vs-clankers.pages.dev` address. Run `npm run deploy:check` after building to verify the Pages package, `npm start` to serve it locally, or `npm run deploy` to build and publish. No custom domain, database, storage service, or application secrets are configured. See [Cloudflare hosting](docs/cloudflare-hosting.md) for the configuration and deployment workflow.
 
 - `lib/roguelike.ts`: weapon definitions, relic catalog, rarity, and derived weapon profiles.
 - `lib/game-model.ts`: deterministic combat, rewards, shared rerolls, effects, and progression.

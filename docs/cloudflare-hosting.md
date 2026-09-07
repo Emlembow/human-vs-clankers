@@ -1,16 +1,24 @@
 # Cloudflare hosting
 
-Man vs. Clankers runs as one Cloudflare Worker named `man-vs-clankers`. It serves the existing Vinext/React page and local static assets; the Three.js game runs in the browser. The public address is `https://man-vs-clankers.<account-subdomain>.workers.dev`, as printed by a successful deployment.
+Man vs. Clankers runs natively on Cloudflare Pages. The project name is `man-vs-clankers`, giving the production address `https://man-vs-clankers.pages.dev` when that name is available. The existing Vinext/React page runs as a Pages advanced-mode Function; the Three.js game runs in the browser. Pages serves its own bundled game, artwork, fonts, and credits. No requests are proxied or redirected to the previous Worker or Sites deployment.
 
-## Configuration
+## Configuration and build
 
-`wrangler.jsonc` is the deployment source of truth. It selects the existing account, enables `workers_dev`, disables version preview URLs, and sets an empty `routes` list. There are no custom domains or DNS changes. No D1, KV, R2, service bindings, scheduled jobs, or application secrets are needed. `ASSETS` is Cloudflare's static asset binding, not an R2 bucket.
+`wrangler.jsonc` is the Pages configuration. It selects the existing account, `dist/pages` as the output directory, and the tested `2026-05-22` compatibility date with `nodejs_compat`. Pages provides the `ASSETS` binding automatically. No custom domains, DNS changes, databases, external storage, service bindings, or application secrets are needed.
 
-`vite.config.ts` combines Vinext with the Cloudflare Vite plugin. The Worker entry is Vinext's `vinext/server/fetch-handler`; RSC and SSR are bundled into that one Worker. `npm run build` writes the deployable configuration to `dist/server/wrangler.json` and the browser assets to `dist/client`. The plugin sets the generated `assets.directory` to the client output. Always deploy the generated configuration after a successful build, rather than passing the framework entry directly to Wrangler's bundler.
+`vite.config.ts` combines Vinext with the Cloudflare Vite plugin, using `wrangler.worker.jsonc` to compile the original `vinext/server/fetch-handler` and its RSC/SSR modules. This original Worker configuration is retained as the build input and optional fallback deployment target. The compatibility date matches the pinned local workerd runtime; update it together with Wrangler/workerd and repeat local runtime checks.
 
-The compatibility date is `2026-05-22`, the latest date supported by the project's pinned local workerd runtime. This lets local validation exercise the same compatibility settings as production. Update the date together with Wrangler/workerd and repeat the local Worker checks; setting a newer date by itself prevents the current local runtime from starting.
+`npm run build` first produces `dist/server` and `dist/client`, then runs `scripts/package-pages.mjs`:
 
-The Worker includes the local models, textures, HDR environment, particles, fonts, provenance, and license notice files. It has no Sites plugin, Sites authentication, Sites-injected browser script, or Sites runtime dependency. `.openai/hosting.json` remains only as the record of the previous private Sites publication; this build does not read it.
+- Copies the client files byte-for-byte into `dist/pages`, including all local artwork, fonts, provenance, and required license notices.
+- Uses pinned esbuild to bundle the already-compiled server module graph, including lazy SSR/RSC imports, into one `dist/pages/_worker.js`. Node and Cloudflare builtins remain runtime imports. Browser code and application source are unchanged.
+- Writes `_routes.json` so static files use Pages' asset serving and page requests use Vinext's existing handler.
+- Replaces the Vite-generated `.wrangler/deploy/config.json` pointer with the Pages configuration. This prevents Pages commands from accidentally selecting the intermediate Worker target. Explicit Worker commands still use `dist/server/wrangler.json`.
+- Verifies every copied file and the generated bundle against the current build.
+
+The single-file advanced-mode entry avoids module-directory resolution problems in pinned Wrangler 4.92.0. `wrangler pages dev` uses its normal local bundling; `--no-bundle` triggers a local `wrangler:modules-watch` error in this pinned version. Production upload uses `--no-bundle` because `_worker.js` is already self-contained, preserving the checked server file.
+
+There is no Sites plugin, login gate, injected script, or runtime dependency. `.openai/hosting.json` remains only as the historical record of the earlier Sites publication; this build does not read it. The previous standalone Worker can remain available independently and is not changed by a Pages deployment.
 
 ## Local development and validation
 
@@ -31,33 +39,43 @@ npm run deploy:check
 npm start
 ```
 
-`npm start` runs the built Worker locally with Wrangler. Check the URL Wrangler prints. This serves `/` and the game's static assets without a Cloudflare or Sites login. `deploy:check` performs a local dry run only; it does not publish anything.
+`deploy:check` is a local package-integrity check, not a remote deployment or a Wrangler upload dry run. It recomputes the bundled server, checks client byte equality, ensures the output contains only the expected files, and verifies the Pages configuration pointer. Use `npm start -- --port 8873` for a chosen local Pages port, then check `/`, game startup, static assets, and the credits disclosure.
 
-After a binding change, regenerate `worker-configuration.d.ts` with `npm run types:worker`. It includes only generated binding types because this project already uses `@cloudflare/workers-types` for runtime definitions.
+After a binding change, run `npm run types:worker` to regenerate `worker-configuration.d.ts`. The shared `ASSETS: Fetcher` interface also matches the binding Pages supplies automatically.
 
 ## Deployment
 
-Authenticate Wrangler to the account configured in `wrangler.jsonc`, then run:
+Authenticate Wrangler to the account configured in `wrangler.jsonc`. Create the Pages project once, if it does not already exist:
+
+```sh
+npx wrangler pages project create man-vs-clankers --production-branch main
+```
+
+Build and publish:
 
 ```sh
 npm run deploy
 ```
 
-That script builds before deploying. For a release whose build has already been checked, publish that exact build with:
+To publish the exact build already checked, without rebuilding:
 
 ```sh
-npx wrangler deploy --config dist/server/wrangler.json
+npm run deploy:check
+npm run deploy:pages
 ```
 
-Keep the returned version ID and `workers.dev` URL in the release record. Do not add a route or custom domain for this deployment. `.env*` and `.dev.vars*` are ignored; credentials belong in Wrangler's authentication state or CI secret storage, not this repository.
+The latter runs `wrangler pages deploy --no-bundle --project-name man-vs-clankers --branch main`. Explicit `--branch main` publishes to the project's production branch even when the local checkout uses a task branch. Keep the deployment ID and returned URLs with the release record. Use the stable project `pages.dev` address for sharing. Do not add a custom domain or change the account's Workers subdomain.
+
+The original Worker remains an optional fallback. After building, `npm run start:worker` runs it locally, `npm run deploy:worker:check` performs its local dry run, and `npm run deploy:worker` explicitly publishes it. None of these commands is part of a normal Pages release.
+
+`.env*`, `.dev.vars*`, and `.wrangler/` are ignored. Credentials belong in Wrangler's authentication state or CI secret storage, never in source or the public build.
 
 ## References
 
-Configuration was checked against the installed Wrangler schema and these current Cloudflare references on 2026-09-06:
+Checked against installed Wrangler 4.92.0 code/schema and official Cloudflare documentation on 2026-09-06:
 
+- [Pages advanced mode](https://developers.cloudflare.com/pages/functions/advanced-mode/)
+- [Pages Wrangler configuration](https://developers.cloudflare.com/pages/functions/wrangler-configuration/)
+- [Pages Functions routing](https://developers.cloudflare.com/pages/functions/routing/)
+- [Pages Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/)
 - [Cloudflare Vite plugin API](https://developers.cloudflare.com/workers/vite-plugin/reference/api/)
-- [Static assets with the Vite plugin](https://developers.cloudflare.com/workers/vite-plugin/reference/static-assets/)
-- [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/)
-- [Workers best practices](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/)
-
-Vinext's installed README and fetch-handler module document the framework entry and the `rsc`/`ssr` Vite environments used here.

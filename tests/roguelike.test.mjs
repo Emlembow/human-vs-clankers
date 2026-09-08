@@ -10,6 +10,8 @@ function clearWave(g) {
   g.invulnerable = 100000;
   for (let i = 0; i < 10000 && g.status === 'playing'; i++) {
     for (const e of g.enemies) g.bullets.push({ id: -e.id, x: e.x - 1, y: e.y, vx: 150, vy: 0, age: 0, damage: 100000 });
+    if (g.boss) g.bullets.push({ id: -g.boss.id, x: g.boss.x - 1, y: g.boss.y, vx: 150, vy: 0, age: 0, damage: 100000 });
+    if (g.chest) { g.player.x = g.chest.x; g.player.y = g.chest.y; }
     g.step(.05, idle); g.events = [];
   }
   assert.equal(g.status, 'reward');

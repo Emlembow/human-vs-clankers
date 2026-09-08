@@ -11,7 +11,7 @@
     "package:pages": "node scripts/package-pages.mjs",
     "start": "wrangler pages dev",
     "deploy": "npm run build && npm run deploy:pages",
-    "deploy:pages": "wrangler pages deploy --no-bundle --project-name man-vs-clankers --branch main",
+    "deploy:pages": "wrangler pages deploy --no-bundle --project-name human-vs-clankers --branch main",
     "deploy:check": "node scripts/package-pages.mjs --check",
     "start:worker": "wrangler dev --config dist/server/wrangler.json",
     "deploy:worker": "wrangler deploy --config dist/server/wrangler.json",

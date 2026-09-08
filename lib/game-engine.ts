@@ -11,7 +11,8 @@ import { createProjectileMesh, createProjectileUnderlay } from './projectile-ren
 import { IndustrialDrones, INDUSTRIAL_COLORS } from './industrial-drones';
 import { IndustrialEnemies } from './industrial-enemies';
 import { frameIndustrialCamera, pointerToArena, CAMERA_DISTANCE, CAMERA_PITCH, PROJECTILE_HEIGHT } from './industrial-camera';
-import { GameModel, type EnemyKind, type GameSnapshot, type Vec, MAX_BULLETS, MAX_ACTIVE_ENEMIES } from './game-model';
+import { BossPresentation } from './boss-render';
+import { GameModel, isBossId, type EnemyKind, type GameSnapshot, type Vec, MAX_BULLETS, MAX_ACTIVE_ENEMIES } from './game-model';
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: THREE.Color };
 type TouchStick = { id: number; x: number; y: number; dx: number; dy: number };
@@ -31,6 +32,7 @@ export class GameEngine {
   private leftStick: TouchStick | null = null; private rightStick: TouchStick | null = null;
   private sticks: HTMLElement[] = []; private fleet = new IndustrialDrones(); private ship = new THREE.Group(); private shield: THREE.Mesh<THREE.SphereGeometry, THREE.MeshPhysicalMaterial>;
   private enemyRenderer: IndustrialEnemies;
+  private bossPresentation: BossPresentation;
   private bulletMesh: THREE.InstancedMesh; private bulletUnderlay: THREE.InstancedMesh; private minimumTracerWidth = .3; private dummy = new THREE.Object3D();
   private bulletColors = new Map<string, THREE.Color>();
   private orbitals: THREE.Group[] = [];
@@ -58,6 +60,7 @@ export class GameEngine {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(800, 500), .27, .35, 1.1); this.composer.addPass(this.bloom); this.composer.addPass(new OutputPass());
     this.ship = this.fleet.create('player');
     this.enemyRenderer = new IndustrialEnemies(this.fleet, MAX_ACTIVE_ENEMIES); this.scene.add(this.enemyRenderer.group);
+    this.bossPresentation = new BossPresentation(); this.scene.add(this.bossPresentation.group);
     this.shield = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(1.7, 24, 12)), this.material(new THREE.MeshPhysicalMaterial({ color: '#b5d0c6', metalness: .12, roughness: .22, transparent: true, opacity: .13, depthWrite: false })));
     this.shield.position.z = .85; this.shield.scale.z = .78; this.ship.add(this.shield); this.scene.add(this.ship);
     this.ring = this.circle(1, '#dfc99b', .45); this.ring.visible = false; this.scene.add(this.ring);
@@ -169,7 +172,63 @@ export class GameEngine {
     this.pointer = pointerToArena(this.camera, (e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2);
   }
   setAutoplay(enabled: boolean) { this.resetInputs(); this.konami.reset(); this.autopilot.setEnabled(enabled); this.onAutoplay(enabled); if (enabled && (this.model.status === 'ready' || this.model.status === 'over')) this.start(); else this.notify(); }
-  start() { this.autopilot.reset(); this.resetInputs(); this.model.start(); this.particles = []; this.unlockAudio(); this.notify(); }
+  start() { this.autopilot.reset(); this.resetInputs(); this.model.start(); this.applyVerifyBossQuery(); this.particles = []; this.unlockAudio(); this.notify(); }
+  private applyVerifyBossQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const host = window as Window & { __gcVerify?: unknown };
+    if (params.get('verifyBoss') !== '1') {
+      delete host.__gcVerify;
+      return;
+    }
+    const raw = params.get('boss') ?? '';
+    const kind = isBossId(raw) ? raw : null;
+    const waveRaw = Number(params.get('wave'));
+    const wave = Number.isInteger(waveRaw) && waveRaw > 0 && waveRaw % 5 === 0 ? waveRaw : 5;
+    this.model.prepareVerifyEncounter(kind, wave);
+    this.model.step(.016, { move: { x: 0, y: 0 }, aim: { x: 0, y: 1 }, shooting: false });
+    host.__gcVerify = this.buildVerifyHandle();
+  }
+  private buildVerifyHandle() {
+    const internals = this.model as unknown as { remaining: number; damageBoss: (amount: number) => void };
+    return {
+      snapshot: () => this.model.snapshot(),
+      remaining: () => internals.remaining,
+      enemyCount: () => this.model.enemies.length,
+      weapons: () => this.model.weapons.map(w => ({ id: w.id, level: w.level, rarity: w.rarity })),
+      boss: () => this.model.boss && {
+        kind: this.model.boss.kind, hp: this.model.boss.hp, maxHp: this.model.boss.maxHp,
+        radius: this.model.boss.radius, age: this.model.boss.age, speedFactor: this.model.boss.speedFactor,
+        x: this.model.boss.x, y: this.model.boss.y,
+      },
+      chest: () => this.model.chest && { x: this.model.chest.x, y: this.model.chest.y, age: this.model.chest.age },
+      events: () => this.model.events.map(e => e.type),
+      meshReady: (kind: string) => this.bossPresentation.hasTemplate(kind),
+      meshFallback: () => this.bossPresentation.activeIsFallback(),
+      meshCount: () => this.bossPresentation.activeMeshCount(),
+      chestReady: () => this.bossPresentation.chestLoaded(),
+      bomb: () => this.bomb(),
+      damageBoss: (amount: number) => { internals.damageBoss(amount); this.notify(); },
+      setBossHp: (hp: number) => { if (this.model.boss) this.model.boss.hp = hp; this.notify(); },
+      collectChest: () => {
+        if (!this.model.chest) return;
+        this.model.player.x = this.model.chest.x;
+        this.model.player.y = this.model.chest.y;
+        this.model.step(.016, { move: { x: 0, y: 0 }, aim: { x: 0, y: 1 }, shooting: false });
+        this.notify();
+      },
+      advance: (seconds: number) => {
+        const input = { move: { x: 0, y: 0 }, aim: { x: 0, y: 1 }, shooting: false };
+        let left = Math.max(0, seconds);
+        while (left > 0) {
+          const dt = Math.min(.016, left);
+          this.model.step(dt, input);
+          left -= dt;
+        }
+        this.notify();
+      },
+      setBossAge: (age: number) => { if (this.model.boss) this.model.boss.age = age; this.notify(); },
+    };
+  }
   togglePause() { this.autopilot.reset(); this.resetInputs(); if (this.model.status === 'playing') this.model.pause(); else if (this.model.status === 'paused') { this.model.resume(); this.unlockAudio(); } this.notify(); }
   bomb() { this.model.bomb(); this.notify(); }
   chooseReward(id: string) { const chosen = this.model.chooseReward(id); if (chosen) { this.resetInputs(); this.unlockAudio(); this.notify(); } return chosen; }
@@ -232,6 +291,9 @@ export class GameEngine {
       }
       if (ev.type === 'blast') { const effect = this.blasts.find(b => b.life <= 0) ?? this.blasts[0]; effect.life = .28; effect.radius = ev.radius ?? 3; effect.ring.position.set(ev.x, ev.y, 1); effect.ring.visible = true; }
       if (ev.type === 'kill') { this.burst(ev.x, ev.y, INDUSTRIAL_COLORS[ev.kind!], 30); this.atmosphere.burst(ev.x, ev.y, INDUSTRIAL_COLORS[ev.kind!], .85); }
+      if (ev.type === 'boss') { this.burst(ev.x, ev.y, '#e8dec2', 90, 22); this.atmosphere.burst(ev.x, ev.y, '#e8dec2', 1.8); }
+      if (ev.type === 'boss-kill') { this.burst(ev.x, ev.y, '#ffcf72', 140, 32); this.atmosphere.burst(ev.x, ev.y, '#ffcf72', 2.4); }
+      if (ev.type === 'arsenal') { this.burst(ev.x, ev.y, '#ffcf72', 160, 28); this.atmosphere.burst(ev.x, ev.y, '#ffcf72', 2.2); }
       if (ev.type === 'hit') { this.burst(ev.x, ev.y, '#ff628f', 110, 28); this.atmosphere.burst(ev.x, ev.y, '#ff628f', 1.6); }
       if (ev.type === 'blast') this.atmosphere.burst(ev.x, ev.y, '#ffc16e', Math.min(1.8, (ev.radius ?? 3) / 4));
       if (ev.type === 'bomb' || ev.type === 'start') { this.ringOrigin = { x: ev.x, y: ev.y }; this.ringAge = 0; this.burst(ev.x, ev.y, INDUSTRIAL_COLORS.player, ev.type === 'bomb' ? 160 : 50, 30); this.atmosphere.burst(ev.x, ev.y, INDUSTRIAL_COLORS.player, ev.type === 'bomb' ? 3 : 1.5); }
@@ -251,8 +313,12 @@ export class GameEngine {
       o.rotation.z = i + (this.reduceMotion ? 0 : this.clock * .08); this.fleet.animateClanker(o, this.reduceMotion ? 0 : this.clock, (['drifter', 'chaser', 'spinner'] as EnemyKind[])[i % 3]);
     });
     this.enemyRenderer.update(this.model.enemies);
+    this.bossPresentation.update(this.model.boss, this.model.chest, frozen ? 0 : dt, frozen);
     for (const e of this.model.enemies) {
       if (!frozen && (e.burnTime > 0 || e.slowTime > 0) && Math.random() < .12) this.burst(e.x, e.y, e.burnTime > 0 ? '#ff9b52' : '#b5cfcd', 1, 2);
+    }
+    if (!frozen && this.model.boss && (this.model.boss.burnTime > 0 || this.model.boss.slowTime > 0) && Math.random() < .12) {
+      this.burst(this.model.boss.x, this.model.boss.y, this.model.boss.burnTime > 0 ? '#ff9b52' : '#b5cfcd', 2, 3);
     }
     this.bulletMesh.count = Math.min(MAX_BULLETS, this.model.bullets.length); this.bulletUnderlay.count = this.bulletMesh.count;
     for (let i = 0; i < this.bulletMesh.count; i++) {
@@ -288,7 +354,7 @@ export class GameEngine {
   dispose() {
     this.autopilot.setEnabled(false); this.konami.reset(); this.resetInputs();
     this.disposed = true; cancelAnimationFrame(this.raf); this.listeners.abort(); this.observer.disconnect();
-    this.atmosphere.dispose(); this.enemyRenderer.dispose(); this.fleet.dispose();
+    this.atmosphere.dispose(); this.enemyRenderer.dispose(); this.bossPresentation.dispose(); this.fleet.dispose();
     for (const g of this.geometries) g.dispose(); for (const m of this.materials) m.dispose();
     this.bulletMesh.dispose(); this.bulletUnderlay.dispose(); this.composer.passes.forEach(p => p.dispose()); this.composer.dispose(); this.renderer.dispose();
     this.renderer.domElement.remove(); this.sticks.forEach(el => el.remove()); if (this.audio) void this.audio.close().catch(() => {});

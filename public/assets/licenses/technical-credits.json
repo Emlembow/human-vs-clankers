@@ -96,12 +96,28 @@
           "id": "three",
           "title": "Three.js 0.185.1",
           "creator": "Three.js authors and contributors",
-          "use": "3D rendering, geometry, glTF/HDR loaders, materials, shadows and postprocessing. Its SimplifyModifier was used to prepare the robot derivative.",
+          "use": "3D rendering, geometry, glTF/HDR loaders including DRACOLoader for boss meshes, materials, shadows and postprocessing. Its SimplifyModifier was used to prepare the robot derivative.",
           "license": {
             "name": "MIT",
             "url": "/assets/licenses/notices/three-MIT.txt"
           },
           "sourceUrl": "https://threejs.org"
+        },
+        {
+          "id": "google-draco",
+          "title": "Draco glTF decoder",
+          "creator": "Google and Draco contributors",
+          "use": "Decodes KHR_draco_mesh_compression on hosted boss and chest GLBs. Runtime files are the glTF-targeted builds shipped with Three.js.",
+          "license": {
+            "name": "Apache License 2.0",
+            "url": "https://github.com/google/draco/blob/master/LICENSE"
+          },
+          "sourceUrl": "https://github.com/google/draco",
+          "files": [
+            "assets/draco/draco_decoder.wasm",
+            "assets/draco/draco_wasm_wrapper.js",
+            "assets/draco/draco_decoder.js"
+          ]
         },
         {
           "id": "react",

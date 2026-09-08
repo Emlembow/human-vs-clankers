@@ -7,6 +7,8 @@ function seeded(seed) {
 }
 function perfectShot(game) {
   for (const e of game.enemies) game.bullets.push({ id: -e.id, x: e.x - 1, y: e.y, vx: 120, vy: 0, age: 0, damage: 100000 });
+  if (game.boss) game.bullets.push({ id: -game.boss.id, x: game.boss.x - 1, y: game.boss.y, vx: 120, vy: 0, age: 0, damage: 100000 });
+  if (game.chest) { game.player.x = game.chest.x; game.player.y = game.chest.y; }
 }
 function pick(game) { if (game.status === 'reward') game.chooseReward((game.rewards.find(r => r.type === 'weapon' || r.type === 'upgrade') ?? game.rewards.find(r => r.relicId !== 'glass')).id); }
 function advanceTo(game, target) {
@@ -92,7 +94,7 @@ test('a crowded late wave stays bounded without dropping its queued enemies', ()
   game.step(.05, idle);
   assert.ok(game.enemies.length <= getWaveTuning(20).burstSize, 'Clearing the cap must not release a catch-up flood.');
   advanceTo(game, 21);
-  assert.equal(game.kills - killsBefore, getWaveTuning(20).enemyCount, 'Every queued enemy still has to be defeated.');
+  assert.equal(game.kills - killsBefore, getWaveTuning(20).enemyCount + 1, 'Every queued enemy still has to be defeated, plus the wave-20 boss.');
 });
 
 test('multi-edge burst spawns keep the same warning time and safety distance', () => {

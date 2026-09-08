@@ -72,20 +72,23 @@ export function RewardScreen({
       game.rewards.map((reward) => reward.comparisonNote).filter(Boolean),
     ),
   ];
+  const weaponOffer = game.rewards.some((reward) => reward.type === 'weapon');
   return (
     <section className="reward-screen" aria-label="Choose your wave reward">
       <div className="reward-heading">
         <h2 ref={heading} tabIndex={-1}>
           {game.wave === 1
             ? 'Choose a weapon'
-            : game.wave === 5
+            : game.wave === 5 && weaponOffer
               ? 'Add a weapon'
               : 'Choose a power-up'}
         </h2>
         {game.wave === 1 ? (
           <p>Add a second weapon after wave 5.</p>
-        ) : game.wave === 5 ? (
+        ) : game.wave === 5 && weaponOffer ? (
           <p>Both weapons stay active.</p>
+        ) : game.wave === 5 && game.arsenalUnlocked ? (
+          <p>The arsenal is already unlocked. Choose a power-up.</p>
         ) : null}
       </div>
       <div className="reward-cards" aria-label="Three reward choices">

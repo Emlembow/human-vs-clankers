@@ -1,4 +1,5 @@
-import { getWaveTuning, type Enemy, type GameModel, type Input, type Vec } from './game-model.ts';
+import { getWaveTuning, isBossId, MAX_ACTIVE_ENEMIES, type Boss, type Enemy, type GameModel, type Input, type Vec } from './game-model.ts';
+import { BOSS_INTRO, stepBoss } from './bosses.ts';
 import { RELICS, upgradedWeapon, weaponProfile, type Reward, type WeaponProfile } from './roguelike.ts';
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
@@ -26,6 +27,28 @@ export class KonamiSequence {
 
 // Mirrors GameModel's motion, including warning time, slowdown, pursuit response,
 // spinner phase and wall reflection. Enemy vx/vy are directions, NOT world speed.
+export function predictBossStep(boss: Boss, player: Vec & { vx: number; vy: number }, model: Pick<GameModel, 'wave' | 'width' | 'height'>, dt: number) {
+  const tuning = getWaveTuning(model.wave);
+  boss.age += dt;
+  boss.slowTime = Math.max(0, boss.slowTime - dt);
+  boss.burnImmune = Math.max(0, boss.burnImmune - dt);
+  if (boss.age < BOSS_INTRO) return;
+  stepBoss(boss, {
+    dt, player, width: model.width, height: model.height, wave: model.wave,
+    speedBonus: tuning.speedBonus, pursuitResponse: tuning.pursuitResponse, interceptTime: tuning.interceptTime,
+    enemyCount: 0, maxEnemies: MAX_ACTIVE_ENEMIES, random: () => 0.5, spawnMinion: () => {},
+  });
+}
+
+function isBossTarget(target: Enemy | Boss): target is Boss {
+  return isBossId(target.kind);
+}
+
+function predictCombatStep(target: Enemy | Boss, player: Vec & { vx: number; vy: number }, model: Pick<GameModel, 'wave' | 'width' | 'height'>, dt: number) {
+  if (isBossTarget(target)) predictBossStep(target, player, model, dt);
+  else predictEnemyStep(target, player, model, dt);
+}
+
 export function predictEnemyStep(enemy: Enemy, player: Vec & { vx: number; vy: number }, model: Pick<GameModel, 'wave' | 'width' | 'height'>, dt: number) {
   const tuning = getWaveTuning(model.wave);
   enemy.age += dt;
@@ -75,22 +98,26 @@ export function predictiveAim(model: GameModel, dt = 1 / 60, move: Vec = { x: 0,
   const vx = model.player.vx + (direction.x * speed - model.player.vx) * easing, vy = model.player.vy + (direction.y * speed - model.player.vy) * easing;
   // GameModel accelerates/moves before firing, and bullets do not inherit ship velocity.
   const origin = { x: clamp(model.player.x + vx * dt, -model.width / 2 + 1.8, model.width / 2 - 1.8), y: clamp(model.player.y + vy * dt, -model.height / 2 + 1.8, model.height / 2 - 1.8), vx, vy };
-  let enemy: Enemy | undefined, distance = Infinity;
+  let enemy: Enemy | Boss | undefined, distance = Infinity;
   for (const e of model.enemies) {
     const d = Math.hypot(e.x - origin.x, e.y - origin.y);
     if (e.hp > 0 && d < distance) { distance = d; enemy = e; }
+  }
+  if (model.boss && model.boss.hp > 0) {
+    const d = Math.hypot(model.boss.x - origin.x, model.boss.y - origin.y);
+    if (d < distance) { distance = d; enemy = model.boss; }
   }
   const weaponAim: Input['weaponAim'] = {};
   if (!enemy) return { aim: { x: 0, y: 1 }, shooting: false, weaponAim };
   for (const profile of model.profiles) {
     const motion = { ...enemy };
-    predictEnemyStep(motion, origin, model, .04);
+    predictCombatStep(motion, origin, model, .04);
     const estimate = interceptTime({ x: enemy.x - origin.x, y: enemy.y - origin.y }, { x: (motion.x - enemy.x) / .04, y: (motion.y - enemy.y) / .04 }, profile.speed);
     let time = Number.isFinite(estimate) ? estimate : Math.max(0, (distance - 1.5) / profile.speed), target = { ...enemy };
     for (let iteration = 0; iteration < 4; iteration++) {
       target = { ...enemy };
       const steps = Math.max(1, Math.ceil(Math.min(time, profile.lifetime) / .04)), step = Math.min(time, profile.lifetime) / steps;
-      for (let i = 0; i < steps; i++) predictEnemyStep(target, { ...origin, x: clamp(origin.x + origin.vx * step * (i + 1), -model.width / 2 + 1.8, model.width / 2 - 1.8), y: clamp(origin.y + origin.vy * step * (i + 1), -model.height / 2 + 1.8, model.height / 2 - 1.8) }, model, step);
+      for (let i = 0; i < steps; i++) predictCombatStep(target, { ...origin, x: clamp(origin.x + origin.vx * step * (i + 1), -model.width / 2 + 1.8, model.width / 2 - 1.8), y: clamp(origin.y + origin.vy * step * (i + 1), -model.height / 2 + 1.8, model.height / 2 - 1.8) }, model, step);
       time = Math.max(0, (Math.hypot(target.x - origin.x, target.y - origin.y) - 1.5) / profile.speed);
     }
     // An unreachable target still receives fire while movement closes range.
@@ -150,11 +177,17 @@ export class AutoplayController {
     const movement = this.movement(model);
     const aim = predictiveAim(model, dt, movement.move);
     this.previous = movement.move;
-    return { input: { move: movement.move, aim: aim.aim, weaponAim: aim.weaponAim, shooting: aim.shooting }, bomb: model.bombs > 0 && model.invulnerable < .2 && movement.danger > 0 };
+    const boss = model.boss && model.boss.hp > 0 ? model.boss : null;
+    const bossRange = boss ? Math.hypot(boss.x - model.player.x, boss.y - model.player.y) : Infinity;
+    const reserve = boss ? 0 : model.wave % 5 === 0 ? 1 : 0;
+    const bomb = model.bombs > reserve && model.invulnerable < .2 && (movement.danger > 0 || !!(boss && bossRange < boss.radius + 3.2));
+    return { input: { move: movement.move, aim: aim.aim, weaponAim: aim.weaponAim, shooting: aim.shooting }, bomb };
   }
   private movement(model: GameModel) {
     const speed = 22 * (1 + Math.min(.75, model.stats.speed));
-    const nearby = model.enemies.filter(e => e.hp > 0).map(e => ({ e, d: Math.hypot(e.x - model.player.x, e.y - model.player.y) })).sort((a, b) => a.d - b.d);
+    const living: Array<Enemy | Boss> = model.enemies.filter(e => e.hp > 0);
+    if (model.boss && model.boss.hp > 0) living.push(model.boss);
+    const nearby = living.map(e => ({ e, d: Math.hypot(e.x - model.player.x, e.y - model.player.y) })).sort((a, b) => a.d - b.d);
     // At most 40 detailed trajectories; all enemies still contribute destination
     // crowd pressure. Far threats cannot close the horizon before the next plan.
     const threats = nearby.filter(({ d }) => d < speed * .85 + 24).slice(0, 40).map(({ e }) => e);
@@ -168,13 +201,15 @@ export class AutoplayController {
         p.vx += (move.x * speed - p.vx) * (1 - Math.exp(-14 * dt)); p.vy += (move.y * speed - p.vy) * (1 - Math.exp(-14 * dt));
         p.x = clamp(p.x + p.vx * dt, -model.width / 2 + 1.8, model.width / 2 - 1.8); p.y = clamp(p.y + p.vy * dt, -model.height / 2 + 1.8, model.height / 2 - 1.8);
         let clearance = 100;
+        if (model.boss && move.x === 0 && move.y === 0) cost += 18 / step;
         for (const e of enemies) {
           const rx = e.x - oldX, ry = e.y - oldY;
-          predictEnemyStep(e, p, model, dt);
-          if (e.age < .8) continue;
+          predictCombatStep(e, p, model, dt);
+          if (e.age < (isBossTarget(e) ? BOSS_INTRO : .8)) continue;
           const dx = e.x - p.x - rx, dy = e.y - p.y - ry;
           const t = clamp(-(rx * dx + ry * dy) / (dx * dx + dy * dy || 1), 0, 1);
-          const gap = Math.hypot(rx + dx * t, ry + dy * t) - e.radius - .72;
+          const slop = .72 + (isBossTarget(e) ? 1.1 : 0);
+          const gap = Math.hypot(rx + dx * t, ry + dy * t) - e.radius - slop;
           clearance = Math.min(clearance, gap);
           if (gap < .3 && step * dt > model.invulnerable) { cost += (10000 + Math.max(0, -gap) * 10000) / step; if (step <= 5) danger++; }
           cost += Math.max(0, 6 - gap) ** 2 * .055 / step;
@@ -184,6 +219,7 @@ export class AutoplayController {
         cost += Math.max(0, 7 - wall) ** 2 * .045;
       }
       for (const { e } of nearby) cost += 7 / Math.max(2, Math.hypot(e.x - p.x, e.y - p.y) - e.radius);
+      if (model.chest) cost += Math.hypot(model.chest.x - p.x, model.chest.y - p.y) * .4;
       const nearest = nearby[0];
       if (nearest) {
         const reach = Math.min(...model.profiles.map(p => p.speed * p.lifetime));

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "man-vs-clankers",
+  "name": "human-vs-clankers",
   "pages_build_output_dir": "./dist/pages",
   "compatibility_date": "2026-05-22",
   "compatibility_flags": [

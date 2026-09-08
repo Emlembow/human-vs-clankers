@@ -1,6 +1,6 @@
 {
   "project": "Man vs. Clankers",
-  "audited": "2026-09-06",
+      "audited": "2026-09-07",
   "groups": [
     {
       "id": "artwork",
@@ -127,9 +127,161 @@
               "url": "/assets/licenses/kenney-particles.txt"
             }
           ]
+        },
+        {
+          "id": "quaternius-mechs",
+          "title": "Animated Mech Pack — Stan, Mike, George",
+          "creator": "Quaternius",
+          "use": "Industrial walkers for Foundry Walker, Rampage Chassis and Ember Furnace. No dinosaurs.",
+          "license": {
+            "name": "CC0 1.0 / QAL v1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://quaternius.com/packs/animatedmech.html",
+          "files": [
+            "assets/bosses/brood-apa.glb",
+            "assets/bosses/accel-rex.glb",
+            "assets/bosses/ember-hide.glb"
+          ],
+          "changes": "Official OGA zip FBX (Stan, Mike, George) plus pack textures converted in Blender 5.2 to GLB with clips, then Draco/WebP optimized. Skinned bind poses were not baked; runtime reorients Y-up to Z-up, samples the posed AABB after the walk clip, and grounds on Z=0. Inner files: FBX/Stan.fbx, FBX/Mike.fbx, FBX/George.fbx.",
+          "links": [
+            {
+              "label": "Pack CC0 notice",
+              "url": "/assets/licenses/quaternius-mechs-cc0.txt"
+            },
+            {
+              "label": "Quaternius Asset License v1.0",
+              "url": "/assets/licenses/quaternius-qal-v1.0.txt"
+            }
+          ]
+        },
+        {
+          "id": "quaternius-toon-tank",
+          "title": "Toon Shooter Game Kit — Tank",
+          "creator": "Quaternius",
+          "use": "Rigid tank hull for Yardbreaker.",
+          "license": {
+            "name": "CC0 1.0 / QAL v1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://poly.pizza/bundle/Toon-Shooter-Game-Kit-qraiSXoAru",
+          "files": ["assets/bosses/camp-breaker.glb"],
+          "changes": "Delivered Poly Pizza Tank GLB reoriented to Z-up, grounded, and scaled so length ≈ 11 world units. Draco-optimized. Inner mesh: Tank.",
+          "links": [
+            {
+              "label": "Quaternius Asset License v1.0",
+              "url": "/assets/licenses/quaternius-qal-v1.0.txt"
+            }
+          ]
+        },
+        {
+          "id": "quaternius-spaceships",
+          "title": "Ultimate Spaceships Pack — Insurgent, Omen, Executioner",
+          "creator": "Quaternius",
+          "use": "Insurgent hull for Open-Field Raider, Omen stealth craft for Lock Drone, Executioner airframe for Sky Leviathan.",
+          "license": {
+            "name": "CC0 1.0 / QAL v1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://quaternius.com/packs/ultimatespaceships.html",
+          "files": [
+            "assets/bosses/open-raider.glb",
+            "assets/bosses/lock-wraith.glb",
+            "assets/bosses/sky-leviathan.glb"
+          ],
+          "changes": "Official OpenGameArt zip (Quaternius upload). Insurgent remains the baked Open-Field Raider hull. Omen.fbx + Omen_Orange.png and Executioner.fbx + Executioner_Blue.png were converted in Blender 5.2 to GLB and Draco/WebP optimized; runtime reorients and grounds them. Inner files: Insurgent/FBX/Insurgent.fbx, Omen/FBX/Omen.fbx, Executioner/FBX/Executioner.fbx.",
+          "links": [
+            {
+              "label": "Quaternius Asset License v1.0",
+              "url": "/assets/licenses/quaternius-qal-v1.0.txt"
+            }
+          ]
+        },
+        {
+          "id": "quaternius-turrets",
+          "title": "Steampunk Turret Pack — Laser Quad",
+          "creator": "Quaternius",
+          "use": "Multi-barrel industrial turret for Phase Crawler.",
+          "license": {
+            "name": "CC0 1.0 / QAL v1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://quaternius.com/packs/turretpack.html",
+          "files": ["assets/bosses/pierce-skitter.glb"],
+          "changes": "Official OGA zip Laser_Quad.fbx converted in Blender 5.2 to GLB, Draco-optimized. Runtime reorients Y-up to Z-up and grounds the posed AABB on Z=0. Inner file: FBX/Laser_Quad.fbx.",
+          "links": [
+            {
+              "label": "Pack CC0 notice",
+              "url": "/assets/licenses/quaternius-turrets-cc0.txt"
+            },
+            {
+              "label": "Quaternius Asset License v1.0",
+              "url": "/assets/licenses/quaternius-qal-v1.0.txt"
+            }
+          ]
+        },
+        {
+          "id": "quaternius-space-kit",
+          "title": "Ultimate Space Kit — Round Rover",
+          "creator": "Quaternius",
+          "use": "Wide wheeled rover for Plate Hauler. Replaces the earlier planet-as-boss fallback.",
+          "license": {
+            "name": "CC0 1.0 / QAL v1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://quaternius.com/packs/ultimatespacekit.html",
+          "files": ["assets/bosses/trample-stego.glb"],
+          "changes": "Official-kit GLB zip Round Rover.glb, Draco-optimized. Runtime reorients and grounds on Z=0. Inner file: Round Rover.glb.",
+          "links": [
+            {
+              "label": "Quaternius Asset License v1.0",
+              "url": "/assets/licenses/quaternius-qal-v1.0.txt"
+            }
+          ]
+        },
+        {
+          "id": "quaternius-cute-monsters",
+          "title": "Cute Animated Monsters — Mushroom",
+          "creator": "Quaternius",
+          "use": "Round candy mushroom for Jelly Prince. Pack page confirmed CC0 at intake.",
+          "license": {
+            "name": "CC0 1.0 / QAL v1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://quaternius.com/packs/cutemonsters.html",
+          "files": ["assets/bosses/jelly-prince.glb"],
+          "changes": "Official OGA zip (Quaternius upload) Mushroom.fbx plus Mushroom_Texture.png converted in Blender 5.2 to GLB with the Idle clip, then Draco/WebP optimized. Skinned; runtime reorients and normalizes height to 10.175 wu. Inner files: FBX/Mushroom.fbx, Textures/Mushroom_Texture.png.",
+          "links": [
+            {
+              "label": "Quaternius Asset License v1.0",
+              "url": "/assets/licenses/quaternius-qal-v1.0.txt"
+            }
+          ]
+        },
+        {
+          "id": "kenney-survival-chest",
+          "title": "Survival Kit — Chest",
+          "creator": "Kenney Vleugels / Kenney",
+          "use": "Closed chest drop plus optional open box swap after Jelly Prince dies.",
+          "license": {
+            "name": "CC0 1.0",
+            "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+          },
+          "sourceUrl": "https://kenney.nl/assets/survival-kit",
+          "files": [
+            "assets/drops/survival-chest.glb",
+            "assets/drops/survival-chest-open.glb"
+          ],
+          "changes": "Official Kenney 2.0 GLBs (Models/GLB format/chest.glb and box-open.glb) reoriented to Z-up, grounded, scaled to pickup height ≈ 1.4 wu, Draco/WebP optimized. Closed chest keeps open/close clips.",
+          "links": [
+            {
+              "label": "Original pack license",
+              "url": "/assets/licenses/kenney-survival-kit.txt"
+            }
+          ]
         }
       ]
     }
   ],
-  "scope": "Creative Commons artwork used in Man vs. Clankers."
+  "scope": "Creative Commons and QAL artwork used in Man vs. Clankers, including boss and chest intake from 2026-09-07."
 }

@@ -1,11 +1,19 @@
 import { WEAPONS, RELICS, RARITIES, MAX_WEAPON_LEVEL, emptyStats, weaponProfile, upgradedWeapon, weaponUpgradePreview, relicValue, rollRarity, type WeaponId, type WeaponState, type WeaponProfile, type RunStats, type Reward, type OwnedRelic, type RelicDef, type Stat } from './roguelike.ts';
+import { BOSS_INTRO, bossDisplayName, bossKnockbackResist, bossSpec, createBoss, isRegularBossId, pickBossKind, stepBoss, type Boss, type BossId, type ChestPickup, type RegularBossId } from './bosses.ts';
+export type { Boss, BossId, ChestPickup, RegularBossId } from './bosses.ts';
+export { isBossId } from './bosses.ts';
 export type Status = 'ready' | 'playing' | 'paused' | 'reward' | 'over';
 export type EnemyKind = 'drifter' | 'chaser' | 'spinner';
 export type Vec = { x: number; y: number };
 export type Enemy = Vec & { id: number; kind: EnemyKind; vx: number; vy: number; angle: number; age: number; radius: number; hp: number; maxHp: number; elite: boolean; burn: number; burnTime: number; slow: number; slowTime: number; flash: number };
+export type CombatBody = Enemy | Boss;
 export type Bullet = Vec & { id: number; vx: number; vy: number; age: number; damage?: number; radius?: number; lifetime?: number; color?: string; pierce?: number; bounces?: number; homing?: number; blast?: number; chain?: number; burn?: number; slow?: number; knockback?: number; rebound?: number; execute?: number; hits?: Set<number>; bounceCount?: number; critical?: boolean; style?: string };
-export type GameEvent = { type: 'shot' | 'kill' | 'hit' | 'bomb' | 'wave' | 'start' | 'reward' | 'upgrade' | 'impact' | 'arc' | 'blast' | 'shield'; x: number; y: number; tx?: number; ty?: number; radius?: number; color?: string; kind?: EnemyKind; weaponId?: WeaponId };
-export type GameSnapshot = { status: Status; score: number; best: number; lives: number; bombs: number; wave: number; multiplier: number; kills: number; time: number; waveBanner: boolean; shields: number; rerolls: number; weapons: WeaponProfile[]; rewards: Reward[]; relics: OwnedRelic[]; waveProgress: number };
+export type GameEvent = { type: 'shot' | 'kill' | 'hit' | 'bomb' | 'wave' | 'start' | 'reward' | 'upgrade' | 'impact' | 'arc' | 'blast' | 'shield' | 'boss' | 'boss-kill' | 'arsenal'; x: number; y: number; tx?: number; ty?: number; radius?: number; color?: string; kind?: EnemyKind; weaponId?: WeaponId; bossId?: BossId };
+export type GameSnapshot = {
+  status: Status; score: number; best: number; lives: number; bombs: number; wave: number; multiplier: number; kills: number; time: number;
+  waveBanner: boolean; shields: number; rerolls: number; weapons: WeaponProfile[]; rewards: Reward[]; relics: OwnedRelic[]; waveProgress: number;
+  bossActive: boolean; bossKind: BossId | null; bossName: string | null; bossHp: number; bossMaxHp: number; chestActive: boolean; arsenalUnlocked: boolean; arsenalBanner: boolean;
+};
 export type Input = { move: Vec; aim: Vec; shooting: boolean; weaponAim?: Partial<Record<WeaponId, Vec>> };
 export const COLORS = { drifter: '#30d9ff', chaser: '#ff4f96', spinner: '#ffb456', player: '#a4ffcc' };
 export const POINTS = { drifter: 100, chaser: 200, spinner: 300 };
@@ -37,7 +45,14 @@ export class GameModel {
   rewards: Reward[] = []; relics: OwnedRelic[] = []; owned: Record<string, number> = {};
   player = { x: 0, y: 0, angle: Math.PI / 2, vx: 0, vy: 0 };
   enemies: Enemy[] = []; bullets: Bullet[] = []; events: GameEvent[] = [];
+  boss: Boss | null = null;
+  chest: ChestPickup | null = null;
+  arsenalUnlocked = false;
   private id = 0; private shotClocks = new Map<WeaponId, number>(); private spawnClock = 0; private remaining = 0; private nextWave = 0; private streak = 0; private spawnSide = 0; private offerSerial = 0; private rewardSeen = new Set<string>(); private orbitalClock = 0; private bombCredit = 0;
+  private bossResolvedThisWave = false;
+  private seenRegularBosses = new Set<RegularBossId>();
+  private arsenalBanner = 0;
+  private forcedBossKind: BossId | null = null;
   random: () => number;
   constructor(random = Math.random) { this.random = random; }
   get profiles() { return this.weapons.map(weapon => weaponProfile(weapon, this.stats, { moving: Math.hypot(this.player.vx, this.player.vy) > 3, shields: this.shields, lives: this.lives })); }
@@ -45,13 +60,26 @@ export class GameModel {
     this.width = width; this.height = height;
     this.player.x = clamp(this.player.x, -width / 2 + 2, width / 2 - 2); this.player.y = clamp(this.player.y, -height / 2 + 2, height / 2 - 2);
     for (const e of this.enemies) { e.x = clamp(e.x, -width / 2 + 1, width / 2 - 1); e.y = clamp(e.y, -height / 2 + 1, height / 2 - 1); }
+    if (this.boss) { this.boss.x = clamp(this.boss.x, -width / 2 + 1.6, width / 2 - 1.6); this.boss.y = clamp(this.boss.y, -height / 2 + 1.6, height / 2 - 1.6); }
+    if (this.chest) { this.chest.x = clamp(this.chest.x, -width / 2 + 1, width / 2 - 1); this.chest.y = clamp(this.chest.y, -height / 2 + 1, height / 2 - 1); }
   }
-  snapshot(): GameSnapshot { return { status: this.status, score: this.score, best: this.best, lives: this.lives, bombs: this.bombs, wave: this.wave, multiplier: this.multiplier, kills: this.kills, time: this.time, waveBanner: this.waveBanner > 0, shields: this.shields, rerolls: this.rerolls, weapons: this.profiles, rewards: this.rewards.map(r => ({ ...r })), relics: this.relics.map(r => ({ ...r })), waveProgress: this.status === 'ready' ? 0 : clamp(1 - (this.remaining + this.enemies.length) / getWaveTuning(this.wave).enemyCount, 0, 1) }; }
+  snapshot(): GameSnapshot {
+    const boss = this.boss;
+    const waveProgress = this.status === 'ready' ? 0 : boss || this.chest ? 1 : clamp(1 - (this.remaining + this.enemies.length) / getWaveTuning(this.wave).enemyCount, 0, 1);
+    return {
+      status: this.status, score: this.score, best: this.best, lives: this.lives, bombs: this.bombs, wave: this.wave, multiplier: this.multiplier, kills: this.kills, time: this.time,
+      waveBanner: this.waveBanner > 0, shields: this.shields, rerolls: this.rerolls, weapons: this.profiles, rewards: this.rewards.map(r => ({ ...r })), relics: this.relics.map(r => ({ ...r })), waveProgress,
+      bossActive: !!boss, bossKind: boss?.kind ?? null,
+      bossName: !boss ? null : boss.easterEgg && !boss.revealed ? '???' : bossDisplayName(boss.kind),
+      bossHp: boss?.hp ?? 0, bossMaxHp: boss?.maxHp ?? 0, chestActive: !!this.chest, arsenalUnlocked: this.arsenalUnlocked, arsenalBanner: this.arsenalBanner > 0,
+    };
+  }
   start() {
     this.status = 'playing'; this.score = 0; this.lives = 3; this.bombs = 3; this.wave = 1; this.multiplier = 1; this.kills = 0; this.time = 0; this.streak = 0;
     this.shields = 0; this.rerolls = 2; this.weapons = [{ id: 'needle', level: 1, rarity: 'common' }]; this.stats = emptyStats(); this.rewards = []; this.relics = []; this.owned = {}; this.rewardSeen.clear(); this.bombCredit = 0; this.orbitalClock = 0;
     this.enemies = []; this.bullets = []; this.events = [{ type: 'start', x: 0, y: 0 }];
     this.player = { x: 0, y: 0, angle: Math.PI / 2, vx: 0, vy: 0 };
+    this.boss = null; this.chest = null; this.bossResolvedThisWave = false; this.forcedBossKind = null; this.seenRegularBosses.clear(); this.arsenalUnlocked = false; this.arsenalBanner = 0;
     this.shotClocks.clear(); this.invulnerable = 2.5; this.shake = 0; this.beginWave();
   }
   pause() { if (this.status === 'playing') this.status = 'paused'; }
@@ -60,6 +88,7 @@ export class GameModel {
     this.remaining = getWaveTuning(this.wave).enemyCount; this.spawnClock = 1.5; this.nextWave = 1;
     this.spawnSide = Math.floor(this.random() * 4); this.waveBanner = 1.8;
     this.shields = Math.min(6, this.shields + this.stats.shieldRegen);
+    this.boss = null; this.chest = null; this.bossResolvedThisWave = false;
     this.events.push({ type: 'wave', x: 0, y: 0 });
   }
   private finishWave() {
@@ -75,12 +104,16 @@ export class GameModel {
     if (def.id === 'rebound' && !this.profiles.some(p => p.bounces) || def.id === 'rupture' && !this.stats.crit || def.id === 'fortress' && !this.shields && !this.stats.shieldRegen) return false;
     return true;
   }
-  private generateRewards() {
-    const first = this.wave === 1, weaponDraft = first || this.wave === 5;
-    const keys = weaponDraft ? WEAPONS.filter(w => !this.weapons.some(owned => owned.id === w.id)).map(w => `weapon:${w.id}`) : [
+  private upgradeAndRelicKeys() {
+    return [
       ...this.weapons.filter(w => w.level < MAX_WEAPON_LEVEL || w.rarity !== 'legendary').map(w => `upgrade:${w.id}`),
       ...RELICS.filter(d => this.canOffer(d)).map(d => `relic:${d.id}`),
     ];
+  }
+  private generateRewards() {
+    const first = this.wave === 1, weaponDraft = first || this.wave === 5;
+    let keys = weaponDraft ? WEAPONS.filter(w => !this.weapons.some(owned => owned.id === w.id)).map(w => `weapon:${w.id}`) : this.upgradeAndRelicKeys();
+    if (weaponDraft && keys.length < 1) keys = this.upgradeAndRelicKeys();
     let pool = keys.filter(k => !this.rewardSeen.has(k));
     if (pool.length < 3) { this.rewardSeen = new Set(this.rewards.map(r => r.key)); pool = keys.filter(k => !this.rewardSeen.has(k)); }
     const selected: string[] = [];
@@ -156,6 +189,40 @@ export class GameModel {
     const e: Enemy = { id: ++this.id, kind: selected, x, y, vx: direction.x, vy: direction.y, angle: this.random() * Math.PI * 2, age: 0, radius: (selected === 'spinner' ? 1.35 : 1.05) * (elite ? 1.4 : 1), hp, maxHp: hp, elite, burn: 0, burnTime: 0, slow: 0, slowTime: 0, flash: 0 };
     this.enemies.push(e); return e;
   }
+  /** Query-gated T005 skip. Off unless the page/engine calls it after `?verifyBoss=1`. */
+  prepareVerifyEncounter(kind: BossId | null, wave = 5) {
+    this.wave = wave;
+    this.remaining = 0;
+    this.enemies = [];
+    this.bullets = [];
+    this.boss = null;
+    this.chest = null;
+    this.bossResolvedThisWave = false;
+    this.forcedBossKind = kind;
+    if (this.weapons.length === 1 && this.weapons[0].id === 'needle') {
+      this.weapons = [{ id: 'repeater', level: 1, rarity: 'common' }];
+      this.shotClocks = new Map([['repeater', .15]]);
+    }
+  }
+  private spawnBoss() {
+    const kind = this.forcedBossKind ?? pickBossKind(this.random, this.seenRegularBosses);
+    this.forcedBossKind = null;
+    if (isRegularBossId(kind)) this.seenRegularBosses.add(kind);
+    const pose = this.bossSpawnPose(kind);
+    const heading = normal(this.player.x - pose.x, this.player.y - pose.y);
+    this.boss = createBoss(kind, ++this.id, pose.x, pose.y, getWaveTuning(this.wave).health, heading.x, heading.y);
+    this.events.push({ type: 'boss', x: this.boss.x, y: this.boss.y, bossId: kind });
+  }
+  private bossSpawnPose(kind: BossId) {
+    const side = Math.floor(this.random() * 4), w = this.width / 2 - 2, h = this.height / 2 - 2;
+    let x = side < 2 ? (side === 0 ? -w : w) : (this.random() * 2 - 1) * w, y = side >= 2 ? (side === 2 ? -h : h) : (this.random() * 2 - 1) * h;
+    if (Math.hypot(x - this.player.x, y - this.player.y) < 18) { x = -x; y = -y; }
+    const radius = bossSpec(kind).radius;
+    const limX = this.width / 2 - radius - 1.6, limY = this.height / 2 - radius - 1.6;
+    x = clamp(x, -limX, limX); y = clamp(y, -limY, limY);
+    if (Math.hypot(x - this.player.x, y - this.player.y) < radius + 8) { x = -x; y = -y; }
+    return { x, y };
+  }
   private destroyEnemy(enemy: Enemy, award: boolean) {
     const i = this.enemies.indexOf(enemy); if (i < 0) return;
     enemy.hp = 0; this.events.push({ type: 'kill', x: enemy.x, y: enemy.y, kind: enemy.kind });
@@ -171,10 +238,59 @@ export class GameModel {
     enemy.hp -= damage; enemy.flash = .1;
     if (enemy.hp <= 0 || enemy.hp / enemy.maxHp <= execute) this.destroyEnemy(enemy, true);
   }
+  private damageBoss(amount: number) {
+    const boss = this.boss; if (!boss || boss.hp <= 0) return;
+    boss.hp -= amount; boss.flash = .1; boss.revealed = true;
+    if (boss.hp > 0) return;
+    boss.hp = 0;
+    this.events.push({ type: 'boss-kill', x: boss.x, y: boss.y, bossId: boss.kind });
+    const points = boss.easterEgg
+      ? Math.round(7777 * (1 + this.stats.score) * this.multiplier)
+      : Math.round(4000 * (this.wave / 5) * (1 + this.stats.score) * this.multiplier);
+    this.score += points; this.kills++; this.streak++;
+    this.multiplier = Math.min(8, 1 + Math.floor(this.streak / 5)); this.best = Math.max(this.best, this.score);
+    if (this.stats.vampiric && this.kills % 50 === 0) this.shields = Math.min(6, this.shields + this.stats.vampiric);
+    if (boss.kind === 'jelly-prince') {
+      this.chest = { x: boss.x, y: boss.y, radius: 1.1, age: 0 };
+      this.boss = null;
+      return;
+    }
+    this.boss = null;
+    this.bossResolvedThisWave = true;
+  }
+  private grantArsenal() {
+    for (const def of WEAPONS) {
+      const owned = this.weapons.find(w => w.id === def.id);
+      if (owned) { owned.level = 8; owned.rarity = 'legendary'; }
+      else this.weapons.push({ id: def.id, level: 8, rarity: 'legendary' });
+    }
+    this.weapons = this.weapons.filter(w => w.id !== 'needle');
+    this.arsenalUnlocked = true;
+    this.shotClocks = new Map(this.weapons.map(w => [w.id, this.shotClocks.get(w.id) ?? .15]));
+  }
+  private collectChest() {
+    if (!this.chest) return;
+    const { x, y } = this.chest;
+    this.grantArsenal();
+    this.arsenalBanner = 2.2;
+    this.events.push({ type: 'arsenal', x, y });
+    this.chest = null;
+    this.bossResolvedThisWave = true;
+  }
+  private combatBodies(): CombatBody[] {
+    return this.boss && this.boss.hp > 0 ? [...this.enemies, this.boss] : this.enemies.slice();
+  }
+  private isBoss(body: CombatBody): body is Boss {
+    return this.boss === body;
+  }
   // Combat effects can remove targets; iterate a snapshot of the active list.
   private explosion(x: number, y: number, radius: number, damage: number, exclude?: number) {
     this.events.push({ type: 'blast', x, y, radius, color: '#ffc16e' });
-    for (const e of this.enemies.slice()) if (e.id !== exclude && Math.hypot(e.x - x, e.y - y) <= radius + e.radius) this.damageEnemy(e, damage);
+    for (const body of this.combatBodies()) {
+      if (body.id === exclude || Math.hypot(body.x - x, body.y - y) > radius + body.radius) continue;
+      if (this.isBoss(body)) this.damageBoss(damage);
+      else this.damageEnemy(body, damage);
+    }
   }
   private chainLightning(from: Vec, damage: number, count: number, hitIds: Set<number>, range = 13) {
     let origin = from;
@@ -190,7 +306,9 @@ export class GameModel {
     if (this.status !== 'playing' || this.bombs <= 0) return false;
     this.bombs--; this.shake = .65; this.invulnerable = Math.max(this.invulnerable, 1.2);
     this.events.push({ type: 'bomb', x: this.player.x, y: this.player.y });
-    for (const e of this.enemies.slice()) this.destroyEnemy(e, true); return true;
+    for (const e of this.enemies.slice()) this.destroyEnemy(e, true);
+    if (this.boss && this.boss.hp > 0) this.damageBoss(this.boss.maxHp * .07);
+    return true;
   }
   private shoot(profile: WeaponProfile, aim?: Vec) {
     const angle = aim && Number.isFinite(aim.x) && Number.isFinite(aim.y) && Math.hypot(aim.x, aim.y) > .1 ? Math.atan2(aim.y, aim.x) : this.player.angle;
@@ -203,10 +321,46 @@ export class GameModel {
     this.events.push({ type: 'shot', x: this.player.x, y: this.player.y, weaponId: profile.id });
   }
   orbitPositions(): Vec[] { return Array.from({ length: Math.min(6, this.stats.orbitals) }, (_, i) => ({ x: this.player.x + Math.cos(this.time * 2.2 + i / this.stats.orbitals * Math.PI * 2) * 4.8, y: this.player.y + Math.sin(this.time * 2.2 + i / this.stats.orbitals * Math.PI * 2) * 4.8 })); }
+  private applyStatus(body: CombatBody, bullet: Bullet) {
+    if (bullet.burn && !(this.isBoss(body) && body.burnImmune > 0)) { body.burn = Math.max(body.burn, bullet.burn); body.burnTime = 3; }
+    if (bullet.slow) { body.slow = Math.max(body.slow, bullet.slow); body.slowTime = 2; }
+  }
+  private knockBody(body: CombatBody, bullet: Bullet) {
+    if (!bullet.knockback || body.hp <= 0) return;
+    const push = normal(bullet.vx, bullet.vy);
+    const distance = this.isBoss(body) ? bullet.knockback * bossKnockbackResist(body.radius) : bullet.knockback;
+    const limX = this.width / 2 - (this.isBoss(body) ? Math.max(1.6, body.radius) : 1.6);
+    const limY = this.height / 2 - (this.isBoss(body) ? Math.max(1.6, body.radius) : 1.6);
+    body.x = clamp(body.x + push.x * distance, -limX, limX);
+    body.y = clamp(body.y + push.y * distance, -limY, limY);
+  }
+  private overlappingContacts() {
+    const hits: CombatBody[] = [];
+    for (const e of this.enemies) if (e.age > .8 && Math.hypot(e.x - this.player.x, e.y - this.player.y) < e.radius + .72) hits.push(e);
+    if (this.boss && this.boss.age > BOSS_INTRO && Math.hypot(this.boss.x - this.player.x, this.boss.y - this.player.y) < this.boss.radius + .72) hits.push(this.boss);
+    return hits;
+  }
+  private resolvePlayerContact(force = false) {
+    if (!force && this.invulnerable > 0) return false;
+    const hits = this.overlappingContacts();
+    if (!hits.length) return false;
+    if (this.random() < this.stats.dodge) { this.invulnerable = .7; this.events.push({ type: 'shield', x: this.player.x, y: this.player.y }); return true; }
+    const x = this.player.x, y = this.player.y;
+    if (this.shields > 0) { this.shields--; this.invulnerable = 1.3; this.events.push({ type: 'shield', x, y }); }
+    else {
+      this.events.push({ type: 'hit', x, y }); this.shake = .65; this.lives--; this.streak = 0; this.multiplier = 1; this.invulnerable = 3 + this.stats.grace;
+      this.player.x = 0; this.player.y = 0; this.player.vx = 0; this.player.vy = 0;
+      for (const e of this.enemies.slice()) if (Math.hypot(e.x, e.y) < 15) this.destroyEnemy(e, false);
+      if (this.lives <= 0) this.status = 'over';
+    }
+    if (this.stats.thorns) this.explosion(x, y, 8, this.stats.thorns);
+    return true;
+  }
   step(dt: number, input: Input) {
     if (this.status !== 'playing' || !Number.isFinite(dt) || dt <= 0) return;
     const tuning = getWaveTuning(this.wave); dt = Math.min(dt, .05); this.time += dt;
     this.invulnerable = Math.max(0, this.invulnerable - dt); this.waveBanner = Math.max(0, this.waveBanner - dt); this.shake = Math.max(0, this.shake - dt * 2);
+    this.arsenalBanner = Math.max(0, this.arsenalBanner - dt);
     const movement = normal(input.move.x, input.move.y), easing = 1 - Math.exp(-14 * dt), speed = 22 * (1 + Math.min(.75, this.stats.speed));
     this.player.vx += (movement.x * speed - this.player.vx) * easing; this.player.vy += (movement.y * speed - this.player.vy) * easing;
     this.player.x = clamp(this.player.x + this.player.vx * dt, -this.width / 2 + 1.8, this.width / 2 - 1.8); this.player.y = clamp(this.player.y + this.player.vy * dt, -this.height / 2 + 1.8, this.height / 2 - 1.8);
@@ -238,34 +392,57 @@ export class GameModel {
       if (Math.abs(e.x) > this.width / 2 - 1.6) { e.x = Math.sign(e.x) * (this.width / 2 - 1.6); e.vx *= -1; }
       if (Math.abs(e.y) > this.height / 2 - 1.6) { e.y = Math.sign(e.y) * (this.height / 2 - 1.6); e.vy *= -1; }
     }
+    if (this.boss) {
+      this.boss.age += dt; this.boss.flash = Math.max(0, this.boss.flash - dt);
+      if (this.boss.burnImmune > 0) this.boss.burnImmune = Math.max(0, this.boss.burnImmune - dt);
+      if (this.boss.burnTime > 0) { this.boss.burnTime -= dt; this.damageBoss(this.boss.burn * dt); }
+      if (this.boss && this.boss.slowTime > 0) this.boss.slowTime -= dt;
+      if (this.boss && this.boss.hp > 0) {
+        const result = stepBoss(this.boss, {
+          dt, player: this.player, width: this.width, height: this.height, wave: this.wave,
+          speedBonus: tuning.speedBonus, pursuitResponse: tuning.pursuitResponse, interceptTime: tuning.interceptTime,
+          enemyCount: this.enemies.length, maxEnemies: MAX_ACTIVE_ENEMIES, random: this.random,
+          spawnMinion: kind => { this.spawnEnemy(kind); },
+        });
+        if (result.shed && this.boss) this.events.push({ type: 'impact', x: this.boss.x, y: this.boss.y, color: '#ff9b52' });
+        if (result.blink && this.boss) this.events.push({ type: 'impact', x: this.boss.x, y: this.boss.y, color: '#99eaff' });
+      }
+    }
+    if (this.chest) {
+      this.chest.age += dt;
+      if (Math.hypot(this.player.x - this.chest.x, this.player.y - this.chest.y) <= this.chest.radius + .72 || this.chest.age >= 8) this.collectChest();
+    }
     this.orbitalClock -= dt;
     if (this.orbitalClock <= 0 && this.stats.orbitals > 0) {
       this.orbitalClock = .2;
-      for (const p of this.orbitPositions()) for (const e of this.enemies.slice()) if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + .8) this.damageEnemy(e, 1.2 * (1 + this.stats.damage));
+      for (const p of this.orbitPositions()) {
+        for (const e of this.enemies.slice()) if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + .8) this.damageEnemy(e, 1.2 * (1 + this.stats.damage));
+        if (this.boss && this.boss.hp > 0 && Math.hypot(this.boss.x - p.x, this.boss.y - p.y) < this.boss.radius + .8) this.damageBoss(1.2 * (1 + this.stats.damage));
+      }
     }
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i], ox = b.x, oy = b.y;
       b.hits ??= new Set();
-      if (b.homing && this.enemies.length) {
-        let target: Enemy | undefined, nearest = 34;
-        for (const e of this.enemies) { const d = Math.hypot(e.x - b.x, e.y - b.y); if (d < nearest && !b.hits.has(e.id)) { nearest = d; target = e; } }
+      if (b.homing) {
+        let target: CombatBody | undefined, nearest = 34;
+        for (const body of this.combatBodies()) { const d = Math.hypot(body.x - b.x, body.y - b.y); if (d < nearest && !b.hits.has(body.id)) { nearest = d; target = body; } }
         if (target) { const direction = normal(target.x - b.x, target.y - b.y), s = Math.hypot(b.vx, b.vy), t = Math.min(1, b.homing * dt); const n = normal(b.vx / s * (1 - t) + direction.x * t, b.vy / s * (1 - t) + direction.y * t); b.vx = n.x * s; b.vy = n.y * s; }
       }
       b.x += b.vx * dt; b.y += b.vy * dt; b.age += dt;
       let removed = false;
-      for (const e of this.enemies.slice()) {
+      for (const e of this.combatBodies()) {
         if (e.hp <= 0 || b.hits.has(e.id)) continue;
         const sx = b.x - ox, sy = b.y - oy, t = clamp(((e.x - ox) * sx + (e.y - oy) * sy) / (sx * sx + sy * sy || 1), 0, 1);
         if (Math.hypot(ox + sx * t - e.x, oy + sy * t - e.y) >= e.radius + (b.radius ?? .28)) continue;
         const damage = (b.damage ?? 1) * (e.burnTime > 0 && e.slowTime > 0 && b.burn && b.slow ? 1.5 : 1);
         b.hits.add(e.id); const impact = { x: e.x, y: e.y };
-        if (b.burn) { e.burn = Math.max(e.burn, b.burn); e.burnTime = 3; }
-        if (b.slow) { e.slow = Math.max(e.slow, b.slow); e.slowTime = 2; }
-        this.damageEnemy(e, damage, b.execute);
+        this.applyStatus(e, b);
+        if (this.isBoss(e)) this.damageBoss(damage);
+        else this.damageEnemy(e, damage, b.execute);
         this.events.push({ type: 'impact', x: impact.x, y: impact.y, color: b.color ?? COLORS.player });
         if (b.blast) this.explosion(impact.x, impact.y, b.blast, damage * .65, e.id);
         if (b.chain) this.chainLightning(impact, damage, b.chain, new Set([e.id]), b.blast ? 16 : 13);
-        if (b.knockback && e.hp > 0) { const push = normal(b.vx, b.vy); e.x = clamp(e.x + push.x * b.knockback, -this.width / 2 + 1.6, this.width / 2 - 1.6); e.y = clamp(e.y + push.y * b.knockback, -this.height / 2 + 1.6, this.height / 2 - 1.6); }
+        this.knockBody(e, b);
         if ((b.pierce ?? 0) > 0) b.pierce!--; else { removed = true; break; }
       }
       if (!removed && (Math.abs(b.x) >= this.width / 2 || Math.abs(b.y) >= this.height / 2)) {
@@ -279,20 +456,22 @@ export class GameModel {
       if (b.age >= (b.lifetime ?? 2)) { if (!removed && b.blast) this.explosion(b.x, b.y, b.blast, (b.damage ?? 1) * .65); removed = true; }
       if (removed) this.bullets.splice(i, 1);
     }
-    if (this.invulnerable === 0 && this.enemies.some(e => e.age > .8 && Math.hypot(e.x - this.player.x, e.y - this.player.y) < e.radius + .72)) {
-      if (this.random() < this.stats.dodge) { this.invulnerable = .7; this.events.push({ type: 'shield', x: this.player.x, y: this.player.y }); }
-      else {
-        const x = this.player.x, y = this.player.y;
-        if (this.shields > 0) { this.shields--; this.invulnerable = 1.3; this.events.push({ type: 'shield', x, y }); }
-        else {
-          this.events.push({ type: 'hit', x, y }); this.shake = .65; this.lives--; this.streak = 0; this.multiplier = 1; this.invulnerable = 3 + this.stats.grace;
-          this.player.x = 0; this.player.y = 0; this.player.vx = 0; this.player.vy = 0;
-          for (const e of this.enemies.slice()) if (Math.hypot(e.x, e.y) < 15) this.destroyEnemy(e, false);
-          if (this.lives <= 0) this.status = 'over';
-        }
-        if (this.stats.thorns) this.explosion(x, y, 8, this.stats.thorns);
+    const contacts = this.overlappingContacts();
+    if (this.invulnerable === 0 && contacts.length) {
+      const charged = this.boss && this.boss.kind === 'camp-breaker' && this.boss.chargeTimer > 0 && contacts.includes(this.boss);
+      if (this.resolvePlayerContact() && charged && this.boss) this.boss.secondContact = .15;
+    }
+    if (this.boss && this.boss.secondContact > 0) {
+      this.boss.secondContact -= dt;
+      if (this.boss.secondContact <= 0) {
+        this.boss.secondContact = 0;
+        if (this.overlappingContacts().includes(this.boss)) this.resolvePlayerContact(true);
       }
     }
-    if (this.status === 'playing' && this.remaining === 0 && this.enemies.length === 0) { this.nextWave -= dt; if (this.nextWave <= 0) this.finishWave(); }
+    if (this.status === 'playing' && this.remaining === 0 && this.enemies.length === 0) {
+      if (this.wave % 5 === 0 && !this.bossResolvedThisWave && !this.boss && !this.chest) { this.spawnBoss(); return; }
+      if (this.boss !== null || this.chest !== null) return;
+      this.nextWave -= dt; if (this.nextWave <= 0) this.finishWave();
+    }
   }
 }

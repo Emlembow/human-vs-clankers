@@ -220,6 +220,29 @@ export default function Home() {
             id="arena"
           >
             <div className="canvas-host" ref={arena} />
+            {game.bossActive && (
+              <div
+                className={`boss-bar ${game.bossKind === 'jelly-prince' ? 'jelly-prince' : ''}`}
+                role="status"
+                aria-label={`${game.bossName ?? 'Boss'} ${Math.max(0, Math.round(game.bossHp))} of ${Math.max(0, Math.round(game.bossMaxHp))} health`}
+              >
+                <header>
+                  <span>{game.bossName ?? 'Boss'}</span>
+                  <b>
+                    {Math.max(0, Math.round(game.bossHp))} / {Math.max(0, Math.round(game.bossMaxHp))}
+                  </b>
+                </header>
+                <progress
+                  max={Math.max(1, game.bossMaxHp)}
+                  value={Math.max(0, game.bossHp)}
+                />
+              </div>
+            )}
+            {game.arsenalBanner && (
+              <div className="arsenal-banner" role="status">
+                FULL ARSENAL
+              </div>
+            )}
             {error ? (
               <div className="start-screen error-screen" role="alert">
                 <h2>Unable to load</h2>
@@ -312,15 +335,23 @@ export default function Home() {
           </div>
           {hasRun && !error && (
             <div className="loadout-bar" aria-label="Current loadout">
-              {game.weapons.map((weapon) => (
-                <div className="equipped-weapon" key={weapon.id}>
-                  <b>{weapon.name}</b>
-                  <span>Lv. {weapon.level}</span>
-                  <small style={{ color: FIELD_RARITY_COLOR[weapon.rarity] }}>
-                    {weapon.rarity}
-                  </small>
-                </div>
-              ))}
+              <div
+                className={`loadout-weapons ${game.weapons.length > 2 ? 'arsenal-grid' : ''}`}
+              >
+                {game.weapons.map((weapon) => (
+                  <div className="equipped-weapon" key={weapon.id}>
+                    <b>{weapon.name}</b>
+                    <span>
+                      {game.weapons.length > 2
+                        ? `L${weapon.level}`
+                        : `Lv. ${weapon.level}`}
+                    </span>
+                    <small style={{ color: FIELD_RARITY_COLOR[weapon.rarity] }}>
+                      {weapon.rarity}
+                    </small>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           <div className="game-toolbar">

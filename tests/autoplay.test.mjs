@@ -72,6 +72,21 @@ test('each weapon leads the closest living enemy using its own speed and this fr
   model.enemies = []; assert.equal(predictiveAim(model).shooting, false);
 });
 
+test('predictive aim and movement include a living boss when the swarm is empty', () => {
+  const model = new GameModel(seeded(3)); model.start();
+  model.prepareVerifyEncounter('accel-rex', 5);
+  model.step(.016, idle);
+  assert.equal(model.boss?.kind, 'accel-rex');
+  model.enemies = [];
+  const result = predictiveAim(model);
+  assert.equal(result.targetId, model.boss.id); assert.equal(result.shooting, true);
+  const bot = new AutoplayController(); bot.setEnabled(true);
+  const before = JSON.stringify({ x: model.boss.x, y: model.boss.y, hp: model.boss.hp });
+  const action = bot.update(model, .04);
+  assert.equal(JSON.stringify({ x: model.boss.x, y: model.boss.y, hp: model.boss.hp }), before);
+  assert.equal(action.input.shooting, true);
+});
+
 test('out-of-range nearest targets are still targeted and do not redirect fire to a farther enemy', () => {
   const model = new GameModel(seeded(3)); model.start();
   model.weapons = [{ id: 'flame', level: 1, rarity: 'common' }];
@@ -135,7 +150,7 @@ test('reward policy values survival at one life, actual upgrade benefit and recu
 test('untouched seeded runs autonomously clear five waves and draft both weapons through normal inputs', () => {
   for (const seed of [1, 7, 42]) {
     const model = new GameModel(seeded(seed)), bot = new AutoplayController(); bot.setEnabled(true); model.start();
-    for (let frame = 0; frame < 7500 && model.wave < 6 && model.status !== 'over'; frame++) {
+    for (let frame = 0; frame < 12000 && model.wave < 6 && model.status !== 'over'; frame++) {
       const action = bot.update(model, .04);
       if (action.bomb) assert.equal(model.bomb(), true);
       if (action.rewardId) assert.equal(model.chooseReward(action.rewardId), true);

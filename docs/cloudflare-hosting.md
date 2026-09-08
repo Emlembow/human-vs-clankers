@@ -1,6 +1,8 @@
 # Cloudflare hosting
 
-Man vs. Clankers runs natively on Cloudflare Pages. The project name is `man-vs-clankers`, giving the production address `https://man-vs-clankers.pages.dev` when that name is available. The existing Vinext/React page runs as a Pages advanced-mode Function; the Three.js game runs in the browser. Pages serves its own bundled game, artwork, fonts, and credits. No requests are proxied or redirected to the previous Worker or Sites deployment.
+Man vs. Clankers runs natively on Cloudflare Pages. The project name is `human-vs-clankers`, giving the production address `https://human-vs-clankers.pages.dev` when that name is available. The existing Vinext/React page runs as a Pages advanced-mode Function; the Three.js game runs in the browser. Pages serves its own bundled game, artwork, fonts, and credits. No requests are proxied or redirected to the previous Worker or Sites deployment.
+
+The address moved from `man-vs-clankers.pages.dev` to `human-vs-clankers.pages.dev` on 2026-09-06 by deploying the same verified game build into the new Pages project. The original project remains available; future normal deployments target `human-vs-clankers`. Wrangler `pages project list` confirms these are two distinct projects.
 
 ## Configuration and build
 
@@ -54,7 +56,7 @@ export CLOUDFLARE_ACCOUNT_ID=15c3d4532d4120bfb4283f59967f7123
 Create the Pages project once, if it does not already exist:
 
 ```sh
-npx wrangler pages project create man-vs-clankers --production-branch main
+npx wrangler pages project create human-vs-clankers --production-branch main
 ```
 
 Build and publish:
@@ -70,7 +72,7 @@ npm run deploy:check
 npm run deploy:pages
 ```
 
-The latter runs `wrangler pages deploy --no-bundle --project-name man-vs-clankers --branch main`. Explicit `--branch main` publishes to the project's production branch even when the local checkout uses a task branch. Keep the deployment ID and returned URLs with the release record. Use the stable project `pages.dev` address for sharing. Do not add a custom domain or change the account's Workers subdomain.
+The latter runs `wrangler pages deploy --no-bundle --project-name human-vs-clankers --branch main`. Explicit `--branch main` publishes to the project's production branch even when the local checkout uses a task branch. Keep the deployment ID and returned URLs with the release record. Use the stable project `pages.dev` address for sharing. Do not add a custom domain or change the account's Workers subdomain.
 
 The original Worker remains an optional fallback. After building, `npm run start:worker` runs it locally, `npm run deploy:worker:check` performs its local dry run, and `npm run deploy:worker` explicitly publishes it. None of these commands is part of a normal Pages release.
 
